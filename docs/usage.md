@@ -2,6 +2,8 @@
 
 `retry` executes one command per attempt until success or retry exhaustion.
 
+The repository-owned end-to-end verification path targets Linux runners.
+
 ## Standard Workflow Usage
 
 ```yaml

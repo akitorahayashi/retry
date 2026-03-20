@@ -94,14 +94,23 @@ function readBooleanFlag(name: string): boolean {
     return false
   }
 
-  switch (value.toLowerCase()) {
+  const normalized = value.toLowerCase()
+
+  switch (normalized) {
     case '1':
     case 'true':
     case 'yes':
     case 'on':
       return true
-    default:
+    case '0':
+    case 'false':
+    case 'no':
+    case 'off':
       return false
+    default:
+      throw new Error(
+        `Input '${name}' must be a boolean token: 1, 0, true, false, yes, no, on, off.`,
+      )
   }
 }
 

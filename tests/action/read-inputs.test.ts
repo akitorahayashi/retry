@@ -127,4 +127,23 @@ describe('readInputs', () => {
 
     expect(() => readInputs()).toThrow("Input 'max_attempts' must be >= 1.")
   })
+
+  it('throws when continue_on_error uses invalid boolean token', () => {
+    mockedGetInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'command':
+          return 'echo ok'
+        case 'max_attempts':
+          return '2'
+        case 'continue_on_error':
+          return 'treu'
+        default:
+          return ''
+      }
+    })
+
+    expect(() => readInputs()).toThrow(
+      "Input 'continue_on_error' must be a boolean token: 1, 0, true, false, yes, no, on, off.",
+    )
+  })
 })

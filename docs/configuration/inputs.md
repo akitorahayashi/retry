@@ -6,7 +6,7 @@
 |------|----------|---------|---------|
 | `command` | yes | none | Command string executed on each attempt |
 | `max_attempts` | yes | none | Maximum number of attempts before exhaustion |
-| `shell` | no | `bash` | Shell executable used to run `command` |
+| `shell` | no | `bash` | Shell executable used to run `command` on Linux runners |
 | `timeout_seconds` | no | none | Per-attempt timeout in seconds |
 | `retry_delay_seconds` | no | `0` | Default delay in seconds before the next retry |
 | `retry_delay_schedule_seconds` | no | none | Comma-separated retry delays per retry index |
@@ -30,5 +30,6 @@ The action emits:
 
 ## Boolean Semantics
 
-`continue_on_error` resolves to `true` only for supported truthy tokens: `1`, `true`, `yes`, or `on`.
+`continue_on_error` accepts `1`, `0`, `true`, `false`, `yes`, `no`, `on`, or `off`.
+Any other non-empty token fails input validation.
 
