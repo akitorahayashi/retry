@@ -19,7 +19,7 @@ fix:
     npm run package
 
 # Run formatting checks
-format:check:
+format-check:
     npm run format:check
 
 # Run linter
@@ -39,7 +39,7 @@ package:
     npm run package
 
 # Verify committed dist output matches generated output
-verify:dist:
+verify-dist:
     npm run verify:dist
 
 # Remove repository-local generated artifacts

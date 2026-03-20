@@ -23,7 +23,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Check Formatting
-        run: just format:check
+        run: just format-check
 
       - name: Lint Code
         run: just lint
@@ -32,4 +32,4 @@ jobs:
         run: just typecheck
 
       - name: Verify Dist
-        run: just verify:dist
+        run: just verify-dist
