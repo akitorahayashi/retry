@@ -1,6 +1,6 @@
 ---
 label: "refacts"
-implementation_ready: false
+implementation_ready: true
 ---
 
 ## Goal
@@ -15,11 +15,11 @@ A single concept—the current iteration number of the command execution—is in
 
 - source_event: "attempt_vs_retry_terminology_taxonomy.md"
   path: "src/app/execute-retry.ts"
-  loc: "49, 79-80"
+  loc: "46, 70-71"
   note: "The variable `attempt` tracks iteration natively but is re-assigned to the alias `retryIndex` before passing to the schedule domain."
 - source_event: "attempt_vs_retry_terminology_taxonomy.md"
   path: "src/domain/schedule.ts"
-  loc: "7-8, 10"
+  loc: "6-8, 10"
   note: "The domain method is named `resolveRetryDelaySeconds` and accepts a parameter `retryIndex`, but internally subtracts 1 since it's actually an attempt count, not a true array index."
 - source_event: "attempt_vs_retry_terminology_taxonomy.md"
   path: "src/domain/result.ts"
@@ -27,15 +27,15 @@ A single concept—the current iteration number of the command execution—is in
   note: "The concept is consistently named `attempt` inside `AttemptResult`, acting as the canonical term elsewhere."
 - source_event: "delay_terminology_taxonomy.md"
   path: "src/action/read-inputs.ts"
-  loc: "10, 24-25"
+  loc: "9, 21-22"
   note: "Defines the property as `retryDelaySeconds` in the `RetryRequest` interface."
 - source_event: "delay_terminology_taxonomy.md"
   path: "src/app/execute-retry.ts"
-  loc: "44"
+  loc: "41"
   note: "Maps `request.retryDelaySeconds` to the internal schedule's `defaultDelaySeconds`."
 - source_event: "delay_terminology_taxonomy.md"
   path: "src/domain/schedule.ts"
-  loc: "2, 13"
+  loc: "2, 11"
   note: "Names the property `defaultDelaySeconds` within the `RetrySchedule` interface."
 
 ## Change Scope

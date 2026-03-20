@@ -1,6 +1,6 @@
 ---
 label: "tests"
-implementation_ready: false
+implementation_ready: true
 ---
 
 ## Goal
@@ -15,11 +15,11 @@ Edge cases and failure modes in `runShellCommand` (`src/adapters/run-shell-comma
 
 - source_event: "untested_run_shell_command_failures_cov.md"
   path: "src/adapters/run-shell-command.ts"
-  loc: "24-48"
+  loc: "23-54"
   note: "Error blocks for throwing on a missing PID, ignoring stdout/stderr exceptions, and catching `error` events are not tested."
 - source_event: "untested_run_shell_command_failures_cov.md"
   path: "tests/adapters/run-shell-command.test.ts"
-  loc: "1-41"
+  loc: "1-28"
   note: "Existing tests do not assert failure paths when spawn completely fails, nor what occurs if writing output fails unexpectedly."
 
 ## Change Scope

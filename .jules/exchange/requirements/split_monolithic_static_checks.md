@@ -1,6 +1,6 @@
 ---
 label: "refacts"
-implementation_ready: false
+implementation_ready: true
 ---
 
 ## Goal
@@ -15,11 +15,11 @@ The static checks workflow executes all verification tasks (formatting, linting,
 
 - source_event: "monolithic_static_checks_devops.md"
   path: ".github/workflows/run-static-checks.yml"
-  loc: "25"
+  loc: "24"
   note: "Executes `just check` as a single monolithic step instead of distinct verification phases."
 - source_event: "monolithic_static_checks_devops.md"
   path: "justfile"
-  loc: "17-21"
+  loc: "16-20"
   note: "The `check` recipe groups `format:check`, `lint`, `typecheck`, and `verify:dist` sequentially."
 
 ## Change Scope

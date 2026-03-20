@@ -1,6 +1,6 @@
 ---
 label: "bugs"
-implementation_ready: false
+implementation_ready: true
 ---
 
 ## Goal
@@ -15,11 +15,11 @@ Third-party GitHub Actions are unpinned and use mutable major version tags (e.g.
 
 - source_event: "unpinned_third_party_actions_devops.md"
   path: ".github/workflows/run-static-checks.yml"
-  loc: "19"
+  loc: "18"
   note: "Uses mutable tag `actions/checkout@v5` instead of a specific SHA."
 - source_event: "unpinned_third_party_actions_devops.md"
   path: ".github/workflows/run-tests.yml"
-  loc: "19"
+  loc: "18"
   note: "Uses mutable tag `actions/checkout@v5` instead of a specific SHA."
 - source_event: "unpinned_third_party_actions_devops.md"
   path: ".github/workflows/verify-e2e-linux.yml"
@@ -27,23 +27,23 @@ Third-party GitHub Actions are unpinned and use mutable major version tags (e.g.
   note: "Uses mutable tag `actions/checkout@v5` instead of a specific SHA."
 - source_event: "unpinned_third_party_actions_devops.md"
   path: ".github/workflows/release.yml"
-  loc: "47"
+  loc: "44"
   note: "Uses mutable tag `actions/checkout@v5` instead of a specific SHA."
 - source_event: "unpinned_third_party_actions_devops.md"
   path: ".github/workflows/release.yml"
-  loc: "51"
+  loc: "48"
   note: "Uses mutable tag `softprops/action-gh-release@v2` instead of a specific SHA."
 - source_event: "unpinned_third_party_actions_devops.md"
   path: ".github/workflows/release.yml"
-  loc: "68"
+  loc: "63"
   note: "Uses mutable tag `actions/checkout@v5` instead of a specific SHA."
 - source_event: "unpinned_third_party_actions_devops.md"
   path: ".github/actions/setup/action.yml"
-  loc: "12"
+  loc: "11"
   note: "Uses mutable tag `actions/setup-node@v5` instead of a specific SHA."
 - source_event: "unpinned_third_party_actions_devops.md"
   path: ".github/actions/setup/action.yml"
-  loc: "17"
+  loc: "16"
   note: "Uses mutable tag `extractions/setup-just@v2` instead of a specific SHA."
 
 ## Change Scope
