@@ -1,6 +1,6 @@
 ---
 label: "bugs"
-implementation_ready: false
+implementation_ready: true
 created_at: "2026-03-20"
 author_role: "mock"
 ---
