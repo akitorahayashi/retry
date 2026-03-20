@@ -37,9 +37,13 @@ jobs:
     name: Test
     uses: ./.github/workflows/run-tests.yml
 
+  verify-e2e-linux:
+    name: Verify E2E Linux
+    uses: ./.github/workflows/verify-e2e-linux.yml
+
   release:
     name: Publish Release
-    needs: [resolve-version, static-checks, test]
+    needs: [resolve-version, static-checks, test, verify-e2e-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -1,0 +1,52 @@
+name: Verify E2E Linux
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-retry-action:
+    name: Verify Retry Action
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Retry Until Third Attempt
+        id: retry-success
+        uses: ./
+        with:
+          command: bash tests/fixtures/commands/succeed-on-third-attempt.sh ./.tmp/e2e-attempt-count
+          max_attempts: '3'
+          retry_delay_seconds: '0'
+
+      - name: Assert Successful Retry Outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${{ steps.retry-success.outputs.succeeded }}" == "true" ]]
+          [[ "${{ steps.retry-success.outputs.final_outcome }}" == "success" ]]
+          [[ "${{ steps.retry-success.outputs.attempts }}" == "3" ]]
+
+      - name: Retry Timeout Failures With Continue Mode
+        id: retry-timeout
+        uses: ./
+        with:
+          command: bash tests/fixtures/commands/timeout-forever.sh
+          max_attempts: '2'
+          timeout_seconds: '1'
+          retry_on: timeout
+          retry_delay_seconds: '0'
+          continue_on_error: 'true'
+          termination_grace_seconds: '1'
+
+      - name: Assert Timeout Outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${{ steps.retry-timeout.outputs.succeeded }}" == "false" ]]
+          [[ "${{ steps.retry-timeout.outputs.final_outcome }}" == "timeout" ]]
+          [[ "${{ steps.retry-timeout.outputs.attempts }}" == "2" ]]

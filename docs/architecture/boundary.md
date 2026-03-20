@@ -2,24 +2,26 @@
 
 ## Repository Boundary
 
-`act-tmpl` is a single-action template repository. The repository owns a minimal GitHub Action that reads inputs, renders a message, and emits one output.
+`retry` is a single-action repository.
 
 The repository surfaces are:
 
 - `action.yml`: public action contract
-- `src/`: TypeScript runtime organized by action, app, and domain boundaries
-- `dist/`: committed package output used by GitHub Actions at tag resolution time
-- `tests/`: repository-owned boundary tests under `tests/action`, `tests/app`, and `tests/domain`
-- `scripts/verify-dist.mjs`: committed-distribution verification
+- `src/`: runtime implementation
+- `tests/`: repository-owned tests aligned to runtime boundaries
+- `dist/`: committed package output used by GitHub Actions
+- `docs/`: usage, configuration, and architecture documentation
+- `.github/workflows/`: CI and verification workflows
 
-## Runtime Boundaries
+## Runtime Boundary Model
 
 The runtime boundaries are:
 
-- `src/index.ts`: bootstrap and top-level orchestration only
-- `src/action/`: action boundary input reading, output emission, and request normalization
-- `src/app/`: use-case orchestration for message rendering
-- `src/domain/`: pure message template rendering
+- `src/index.ts`: bootstrap and top-level failure handling only
+- `src/action/`: GitHub Actions input reading and output emission
+- `src/app/`: retry use-case orchestration
+- `src/domain/`: pure retry policy, schedule, and result logic
+- `src/adapters/`: process execution, process termination, and waiting
 
 ## Dependency Direction
 
@@ -27,37 +29,30 @@ Runtime dependencies follow this direction:
 
 ```text
 index -> action -> app -> domain
-action -> domain
+app -> adapters
 domain -> none
+adapters -> node runtime
 ```
 
-`domain` remains pure and does not depend on `action` or `app`.
+`action` does not own retry policy. `domain` does not depend on GitHub Actions APIs or Node runtime APIs.
 
 ## Runtime Execution Flow
 
 The action runtime executes this sequence:
 
-1. Read required and optional action inputs.
-2. Normalize an action request from input values.
-3. Render the final message string.
-4. Emit `rendered-message`.
-5. Log the rendered value.
-
-## Reusable Baseline
-
-The repository demonstrates a reusable TypeScript GitHub Action baseline:
-
-- `action.yml`
-- minimal `src/index.ts` bootstrap
-- boundary-owned runtime directories (`src/action`, `src/app`, `src/domain`)
-- boundary-owned tests (`tests/action`, `tests/app`, `tests/domain`)
-- standard validation and committed-output verification (`just`, `scripts/verify-dist.mjs`)
+1. Read and validate action inputs.
+2. Execute one command attempt.
+3. Resolve outcome as `success`, `error`, or `timeout`.
+4. Apply retry policy and delay resolution.
+5. Emit final outputs with attempts, outcome, and exit code.
 
 ## Failure Invariants
 
 The action fails explicitly when:
 
-- the `message` input is missing or blank
-- runtime boundaries receive invalid input values
+- required inputs are missing
+- numeric inputs are invalid
+- retry policy values are invalid
+- attempts are exhausted and `continue_on_error` is not enabled
 
 No silent fallback paths are used.

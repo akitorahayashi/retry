@@ -1,7 +1,7 @@
 {
-  "name": "act-tmpl",
-  "version": "0.1.0",
-  "description": "TypeScript GitHub Action template repository",
+  "name": "retry",
+  "version": "1.0.0",
+  "description": "TypeScript GitHub Action for command retry execution",
   "private": true,
   "license": "UNLICENSED",
   "engines": {
@@ -18,8 +18,7 @@
     "verify:dist": "node ./scripts/verify-dist.mjs"
   },
   "dependencies": {
-    "@actions/core": "^1.11.1",
-    "@actions/github": "^6.0.0"
+    "@actions/core": "^1.11.1"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.5",

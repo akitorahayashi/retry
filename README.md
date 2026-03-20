@@ -1,45 +1,55 @@
-# act-tmpl
+# retry
 
-`act-tmpl` is a TypeScript GitHub Action template repository. It ships a minimal but complete action that renders a message from inputs and emits the rendered value as an action output.
+`retry` is a TypeScript GitHub Action that executes one command with retry and timeout policy controls.
 
-The repository demonstrates a reusable delivery foundation:
+The action owns:
 
-- committed `dist/` packaging and verification
-- split reusable workflows under `.github/workflows/`
-- `just` as the local task surface
-- runtime boundaries organized as `index -> action -> app -> domain`
+- retry attempt control
+- per-attempt timeout control
+- retry delays (fixed and schedule-based)
+- retry decision by failure class and exit-code filters
+- explicit outputs for final execution outcome
 
 ## Quick Start
 
 ```yaml
-- uses: akitorahayashi/act-tmpl@v1
+- uses: akitorahayashi/retry@v1
   with:
-    message: hello world
-    prefix: greeting
-    suffix: done
-    uppercase: false
+    command: npm test
+    max_attempts: '3'
+    timeout_seconds: '120'
+    retry_delay_seconds: '5'
 ```
 
 ## Action Contract
 
 Inputs:
 
-- `message` (required)
-- `prefix` (optional)
-- `suffix` (optional)
-- `uppercase` (optional, default: false)
+- `command` (required)
+- `max_attempts` (required)
+- `shell` (optional)
+- `timeout_seconds` (optional)
+- `retry_delay_seconds` (optional)
+- `retry_delay_schedule_seconds` (optional)
+- `retry_on` (optional, `any | error | timeout`, default: `any`)
+- `retry_on_exit_codes` (optional)
+- `continue_on_error` (optional, default: `false`)
+- `termination_grace_seconds` (optional)
 
 Outputs:
 
-- `rendered-message`
+- `attempts`
+- `final_exit_code`
+- `final_outcome`
+- `succeeded`
 
 ## Runtime Flow
 
-1. Read inputs from the GitHub Actions boundary.
-2. Normalize inputs into an action request.
-3. Render a final string in the app and domain boundaries.
-4. Emit `rendered-message`.
-5. Log the rendered value.
+1. Read and validate retry action inputs.
+2. Execute one command attempt.
+3. Apply timeout, termination, and retry policy.
+4. Wait between attempts when retries are allowed.
+5. Emit final outputs describing outcome and attempts.
 
 ## Documentation
 

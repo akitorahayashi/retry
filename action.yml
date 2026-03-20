@@ -1,22 +1,50 @@
-name: act-tmpl
-description: Render a message from action inputs
+name: retry
+description: Retry one command with timeout and retry policy controls
 inputs:
-  message:
-    description: Base message text to render
+  command:
+    description: Command to execute for each attempt
     required: true
-  prefix:
-    description: Optional prefix inserted before the message
+  max_attempts:
+    description: Maximum number of attempts before stopping
+    required: true
+  shell:
+    description: Shell executable used to run the command on Linux runners
     required: false
-  suffix:
-    description: Optional suffix appended after the message
+    default: bash
+  timeout_seconds:
+    description: Per-attempt timeout in seconds
     required: false
-  uppercase:
-    description: Optional flag to convert the rendered message to uppercase
+  retry_delay_seconds:
+    description: Default delay in seconds before the next retry attempt
     required: false
-    default: false
+    default: '0'
+  retry_delay_schedule_seconds:
+    description: Comma-separated per-retry delay schedule in seconds
+    required: false
+  retry_on:
+    description: Failure class to retry (any, error, timeout)
+    required: false
+    default: any
+  retry_on_exit_codes:
+    description: Comma-separated exit codes that are eligible for retry
+    required: false
+  continue_on_error:
+    description: Keep the step successful when all attempts fail
+    required: false
+    default: 'false'
+  termination_grace_seconds:
+    description: Grace period in seconds between graceful and forced termination
+    required: false
+    default: '5'
 outputs:
-  rendered-message:
-    description: Final rendered message output
+  attempts:
+    description: Number of attempts that executed
+  final_exit_code:
+    description: Final command exit code when available
+  final_outcome:
+    description: Final attempt outcome (success, error, timeout)
+  succeeded:
+    description: Whether the command eventually succeeded
 runs:
   using: node24
   main: dist/index.js
