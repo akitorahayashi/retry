@@ -1,6 +1,6 @@
 ---
 label: "refacts"
-implementation_ready: false
+implementation_ready: true
 ---
 
 ## Goal
@@ -15,19 +15,19 @@ The result of the action execution is modeled twice: once as `FinalResult` in th
 
 - source_event: "duplicate_final_result_type_data_arch.md"
   path: "src/domain/result.ts"
-  loc: "lines 9-14"
+  loc: "9-14"
   note: "Defines `FinalResult`."
 - source_event: "duplicate_final_result_type_data_arch.md"
   path: "src/action/emit-outputs.ts"
-  loc: "lines 3-8"
+  loc: "3-8"
   note: "Defines `RetryActionOutput` which structurally duplicates `FinalResult`, including a hardcoded inline union for `finalOutcome` instead of reusing `AttemptOutcome`."
 - source_event: "duplicate_final_result_type_data_arch.md"
   path: "src/index.ts"
-  loc: "line 9"
+  loc: "9"
   note: "Passes `result` of type `FinalResult` implicitly as `RetryActionOutput` to `emitOutputs`."
 - source_event: "duplicate_result_type_taxonomy.md"
   path: "src/domain/result.ts"
-  loc: "10-15"
+  loc: "9-14"
   note: "Defines the `FinalResult` interface representing the final execution state."
 - source_event: "duplicate_result_type_taxonomy.md"
   path: "src/action/emit-outputs.ts"
@@ -39,11 +39,11 @@ The result of the action execution is modeled twice: once as `FinalResult` in th
   note: "Passes the `result` (of type `FinalResult`) directly to `emitOutputs` (which expects `RetryActionOutput`), proving they represent the exact same concept."
 - source_event: "transport_dto_leak_data_arch.md"
   path: "src/app/execute-retry.ts"
-  loc: "line 87"
+  loc: "93"
   note: "`runAttempt` takes `RetryRequest` directly instead of a domain-specific model for the command execution."
 - source_event: "transport_dto_leak_data_arch.md"
   path: "src/action/read-inputs.ts"
-  loc: "lines 5-16"
+  loc: "5-16"
   note: "Defines `RetryRequest`, which mixes execution instructions with GitHub Action-specific configurations."
 
 ## Change Scope

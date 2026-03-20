@@ -15,11 +15,11 @@ Signal handlers and timeouts in `executeRetry` are completely uncovered by tests
 
 - source_event: "uncovered_signal_handlers_execute_retry_cov.md"
   path: "src/app/execute-retry.ts"
-  loc: "110-161"
+  loc: "105-162"
   note: "Signal handlers (`onSigterm`, `onSigint`) and timeout termination logic are executed but there are no tests asserting they correctly clean up the process tree or result in the proper outcome."
 - source_event: "uncovered_signal_handlers_execute_retry_cov.md"
   path: "tests/app/execute-retry.test.ts"
-  loc: "1-105"
+  loc: "1-102"
   note: "Tests focus purely on iteration logic, policy evaluation, and scheduling delays, relying on mocked process completion. There are no tests to simulate signal events or a command exceeding `timeoutSeconds`."
 
 ## Change Scope

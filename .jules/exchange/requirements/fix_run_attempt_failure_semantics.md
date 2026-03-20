@@ -15,19 +15,19 @@ Ensure all command execution failures map into a valid `AttemptResult` domain ob
 
 - source_event: "mixed_failure_semantics_typescripter.md"
   path: "src/adapters/run-shell-command.ts"
-  loc: "line 21-23"
+  loc: "21-23"
   note: "Throws a synchronous exception if process start fails."
 - source_event: "mixed_failure_semantics_typescripter.md"
   path: "src/adapters/run-shell-command.ts"
-  loc: "line 42-45"
+  loc: "46-54"
   note: "Rejects the completion promise on child process error."
 - source_event: "mixed_failure_semantics_typescripter.md"
   path: "src/app/execute-retry.ts"
-  loc: "line 164"
+  loc: "155"
   note: "Awaits the completion promise without a try/catch, causing rejections to bubble out of `runAttempt`."
 - source_event: "non_exhaustive_policy_handling_typescripter.md"
   path: "src/domain/policy.ts"
-  loc: "line 10-33"
+  loc: "10-29"
   note: "Sequential if-statements evaluate policy logic without static exhaustiveness checking."
 
 ## Change Scope

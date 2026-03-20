@@ -1,6 +1,6 @@
 ---
 label: "refacts"
-implementation_ready: false
+implementation_ready: true
 ---
 
 ## Goal
@@ -15,11 +15,11 @@ The `RetryOn` concept is defined multiple times as a string union type (`'any' |
 
 - source_event: "duplicate_retry_on_type_data_arch.md"
   path: "src/domain/policy.ts"
-  loc: "line 2"
+  loc: "2"
   note: "Defines `export type RetryOn = 'any' | 'error' | 'timeout'`."
 - source_event: "duplicate_retry_on_type_data_arch.md"
   path: "src/action/read-inputs.ts"
-  loc: "line 3"
+  loc: "3"
   note: "Duplicates the definition of `export type RetryOn = 'any' | 'error' | 'timeout'`."
 
 ## Change Scope
