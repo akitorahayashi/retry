@@ -43,7 +43,7 @@ export async function executeRetry(
   }
 
   const schedule: RetrySchedule = {
-    defaultDelaySeconds: request.retryDelaySeconds,
+    retryDelaySeconds: request.retryDelaySeconds,
     retryDelayScheduleSeconds: request.retryDelayScheduleSeconds,
   }
 
@@ -76,8 +76,7 @@ export async function executeRetry(
       return toFinalResult(finalAttempt)
     }
 
-    const retryIndex = attempt
-    const delaySeconds = resolveRetryDelaySeconds(retryIndex, schedule)
+    const delaySeconds = resolveRetryDelaySeconds(attempt, schedule)
 
     core.warning(
       `Attempt ${attempt} failed with ${finalAttempt.outcome} (exit code: ${formatExitCode(finalAttempt.exitCode)}). Retrying.`,
