@@ -26015,7 +26015,7 @@ async function executeRetry(request, dependencies = runtimeDependencies) {
         retryOnExitCodes: request.retryOnExitCodes,
     };
     const schedule = {
-        defaultDelaySeconds: request.retryDelaySeconds,
+        retryDelaySeconds: request.retryDelaySeconds,
         retryDelayScheduleSeconds: request.retryDelayScheduleSeconds,
     };
     let finalAttempt;
@@ -26032,8 +26032,7 @@ async function executeRetry(request, dependencies = runtimeDependencies) {
             core.info('Failure is outside retry policy. Stopping without additional retries.');
             return (0, result_1.toFinalResult)(finalAttempt);
         }
-        const retryIndex = attempt;
-        const delaySeconds = (0, schedule_1.resolveRetryDelaySeconds)(retryIndex, schedule);
+        const delaySeconds = (0, schedule_1.resolveRetryDelaySeconds)(attempt, schedule);
         core.warning(`Attempt ${attempt} failed with ${finalAttempt.outcome} (exit code: ${formatExitCode(finalAttempt.exitCode)}). Retrying.`);
         if (delaySeconds > 0) {
             core.info(`Waiting ${delaySeconds}s before next attempt.`);
@@ -26172,12 +26171,12 @@ function toFinalResult(result) {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.resolveRetryDelaySeconds = resolveRetryDelaySeconds;
-function resolveRetryDelaySeconds(retryIndex, schedule) {
-    const scheduleValue = schedule.retryDelayScheduleSeconds[retryIndex - 1];
+function resolveRetryDelaySeconds(attempt, schedule) {
+    const scheduleValue = schedule.retryDelayScheduleSeconds[attempt - 1];
     if (typeof scheduleValue === 'number') {
         return scheduleValue;
     }
-    return schedule.defaultDelaySeconds;
+    return schedule.retryDelaySeconds;
 }
 
 
