@@ -2,7 +2,7 @@
 
 ## Scope
 
-`act-tmpl` is a single-action template repository. The active runtime surface is the GitHub Action contract in `action.yml`, the TypeScript boundaries under `src/`, and the committed package output in `dist/`.
+`retry` is a single-action repository. The active runtime surface is the GitHub Action contract in `action.yml`, the TypeScript boundaries under `src/`, and the committed package output in `dist/`.
 
 ## Local Verification
 

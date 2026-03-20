@@ -1,0 +1,56 @@
+import { describe, expect, it } from 'vitest'
+import { shouldRetryFailure } from '../../src/domain/policy'
+
+describe('shouldRetryFailure', () => {
+  it('never retries success outcomes', () => {
+    expect(
+      shouldRetryFailure('success', 0, {
+        retryOn: 'any',
+      }),
+    ).toBe(false)
+  })
+
+  it('retries error and timeout when policy is any', () => {
+    expect(
+      shouldRetryFailure('error', 1, {
+        retryOn: 'any',
+      }),
+    ).toBe(true)
+
+    expect(
+      shouldRetryFailure('timeout', null, {
+        retryOn: 'any',
+      }),
+    ).toBe(true)
+  })
+
+  it('retries only timeout when policy is timeout', () => {
+    expect(
+      shouldRetryFailure('error', 1, {
+        retryOn: 'timeout',
+      }),
+    ).toBe(false)
+
+    expect(
+      shouldRetryFailure('timeout', null, {
+        retryOn: 'timeout',
+      }),
+    ).toBe(true)
+  })
+
+  it('applies exit-code filter for error outcomes', () => {
+    expect(
+      shouldRetryFailure('error', 7, {
+        retryOn: 'any',
+        retryOnExitCodes: new Set([7, 9]),
+      }),
+    ).toBe(true)
+
+    expect(
+      shouldRetryFailure('error', 2, {
+        retryOn: 'any',
+        retryOnExitCodes: new Set([7, 9]),
+      }),
+    ).toBe(false)
+  })
+})
