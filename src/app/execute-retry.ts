@@ -3,6 +3,7 @@ import {
   runShellCommand,
   type RunningCommand,
 } from '../adapters/run-shell-command'
+import { delay } from '../adapters/delay'
 import { sleep } from '../adapters/sleep'
 import { terminateProcessTree } from '../adapters/terminate-process-tree'
 import type { RetryRequest } from '../action/read-inputs'
@@ -23,12 +24,17 @@ import {
 
 interface RuntimeDependencies {
   runCommand: (command: string, shell: string) => RunningCommand
+  delay: (milliseconds: number) => {
+    promise: Promise<void>
+    cancel: () => void
+  }
   sleep: (milliseconds: number) => Promise<void>
   terminateProcessTree: (pid: number, graceSeconds: number) => Promise<void>
 }
 
 const runtimeDependencies: RuntimeDependencies = {
   runCommand: runShellCommand,
+  delay,
   sleep,
   terminateProcessTree,
 }
@@ -104,8 +110,6 @@ async function runAttempt(
   core.info(`Running command: ${request.command}`)
 
   const running = dependencies.runCommand(request.command, request.shell)
-  let timedOut = false
-  let timeoutTimer: NodeJS.Timeout | undefined
 
   const onSignal = async (signal: NodeJS.Signals): Promise<void> => {
     if (running.isRunning()) {
@@ -143,46 +147,74 @@ async function runAttempt(
   process.once('SIGTERM', onSigterm)
   process.once('SIGINT', onSigint)
 
-  if (request.timeoutSeconds !== undefined) {
-    timeoutTimer = setTimeout(() => {
-      timedOut = true
+  let timerCancel: (() => void) | undefined
+
+  try {
+    const completionPromise = running.completion.then((completion) => ({
+      type: 'completion' as const,
+      completion,
+    }))
+
+    let racePromise: Promise<
+      | { type: 'completion'; completion: { exitCode: number | null } }
+      | { type: 'timeout' }
+    > = completionPromise
+
+    if (request.timeoutSeconds !== undefined) {
+      const timer = dependencies.delay(request.timeoutSeconds * 1000)
+      timerCancel = timer.cancel
+
+      const timeoutPromise = timer.promise.then(() => ({
+        type: 'timeout' as const,
+      }))
+
+      racePromise = Promise.race([completionPromise, timeoutPromise])
+    }
+
+    const result = await racePromise
+
+    if (result.type === 'timeout') {
       core.warning(
         `Attempt ${attempt} timed out after ${request.timeoutSeconds}s.`,
       )
-      dependencies
-        .terminateProcessTree(running.pid, request.terminationGraceSeconds)
-        .catch((error: unknown) => {
-          const message = error instanceof Error ? error.message : String(error)
-          core.error(
-            `Failed timeout termination pid=${running.pid} grace=${request.terminationGraceSeconds}s: ${message}`,
-          )
-        })
-    }, request.timeoutSeconds * 1000)
-  }
 
-  try {
-    const completion = await running.completion
+      try {
+        await dependencies.terminateProcessTree(
+          running.pid,
+          request.terminationGraceSeconds,
+        )
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error)
+        core.error(
+          `Failed timeout termination pid=${running.pid} grace=${request.terminationGraceSeconds}s: ${message}`,
+        )
+      }
 
-    if (timeoutTimer) {
-      clearTimeout(timeoutTimer)
+      const completion = await running.completion
+
+      return {
+        attempt,
+        outcome: 'timeout',
+        exitCode: completion.exitCode,
+      }
     }
 
-    const outcome: AttemptOutcome = timedOut
-      ? 'timeout'
-      : completion.exitCode === 0
-        ? 'success'
-        : 'error'
+    const outcome: AttemptOutcome =
+      result.completion.exitCode === 0 ? 'success' : 'error'
 
     core.info(
-      `Attempt ${attempt} completed with outcome=${outcome} exitCode=${formatExitCode(completion.exitCode)}`,
+      `Attempt ${attempt} completed with outcome=${outcome} exitCode=${formatExitCode(result.completion.exitCode)}`,
     )
 
     return {
       attempt,
       outcome,
-      exitCode: completion.exitCode,
+      exitCode: result.completion.exitCode,
     }
   } finally {
+    if (timerCancel) {
+      timerCancel()
+    }
     process.off('SIGTERM', onSigterm)
     process.off('SIGINT', onSigint)
   }
