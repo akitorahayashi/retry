@@ -116,4 +116,52 @@ describe('executeRetry', () => {
     expect(sleepFn).toHaveBeenNthCalledWith(2, 5000)
     expect(result.attempts).toBe(3)
   })
+
+  it('treats synchronous errors in runCommand as error outcome and retries', async () => {
+    const runCommand = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw new Error('spawn failed')
+      })
+      .mockReturnValueOnce(completed(0))
+
+    const result = await executeRetry(createRequest({ maxAttempts: 2 }), {
+      runCommand,
+      sleep: vi.fn().mockResolvedValue(undefined),
+      terminateProcessTree: vi.fn().mockResolvedValue(undefined),
+    })
+
+    expect(runCommand).toHaveBeenCalledTimes(2)
+    expect(result).toEqual({
+      attempts: 2,
+      finalExitCode: 0,
+      finalOutcome: 'success',
+      succeeded: true,
+    })
+  })
+
+  it('treats promise rejections in runCommand completion as error outcome and retries', async () => {
+    const runCommand = vi
+      .fn()
+      .mockReturnValueOnce({
+        pid: 101,
+        completion: Promise.reject(new Error('process crashed')),
+        isRunning: () => false,
+      })
+      .mockReturnValueOnce(completed(0))
+
+    const result = await executeRetry(createRequest({ maxAttempts: 2 }), {
+      runCommand,
+      sleep: vi.fn().mockResolvedValue(undefined),
+      terminateProcessTree: vi.fn().mockResolvedValue(undefined),
+    })
+
+    expect(runCommand).toHaveBeenCalledTimes(2)
+    expect(result).toEqual({
+      attempts: 2,
+      finalExitCode: 0,
+      finalOutcome: 'success',
+      succeeded: true,
+    })
+  })
 })

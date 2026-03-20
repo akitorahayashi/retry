@@ -103,12 +103,12 @@ async function runAttempt(
 ): Promise<AttemptResult> {
   core.info(`Running command: ${request.command}`)
 
-  const running = dependencies.runCommand(request.command, request.shell)
+  let running: RunningCommand | undefined
   let timedOut = false
   let timeoutTimer: NodeJS.Timeout | undefined
 
   const onSignal = async (signal: NodeJS.Signals): Promise<void> => {
-    if (running.isRunning()) {
+    if (running?.isRunning()) {
       core.warning(
         `Received ${signal}. Terminating active command process tree.`,
       )
@@ -143,25 +143,36 @@ async function runAttempt(
   process.once('SIGTERM', onSigterm)
   process.once('SIGINT', onSigint)
 
-  if (request.timeoutSeconds !== undefined) {
-    timeoutTimer = setTimeout(() => {
-      timedOut = true
-      core.warning(
-        `Attempt ${attempt} timed out after ${request.timeoutSeconds}s.`,
-      )
-      dependencies
-        .terminateProcessTree(running.pid, request.terminationGraceSeconds)
-        .catch((error: unknown) => {
-          const message = error instanceof Error ? error.message : String(error)
-          core.error(
-            `Failed timeout termination pid=${running.pid} grace=${request.terminationGraceSeconds}s: ${message}`,
-          )
-        })
-    }, request.timeoutSeconds * 1000)
-  }
-
   try {
-    const completion = await running.completion
+    running = dependencies.runCommand(request.command, request.shell)
+
+    if (!running) {
+      throw new Error('Command process failed to start without throwing.')
+    }
+    const currentRunning = running
+
+    if (request.timeoutSeconds !== undefined) {
+      timeoutTimer = setTimeout(() => {
+        timedOut = true
+        core.warning(
+          `Attempt ${attempt} timed out after ${request.timeoutSeconds}s.`,
+        )
+        dependencies
+          .terminateProcessTree(
+            currentRunning.pid,
+            request.terminationGraceSeconds,
+          )
+          .catch((error: unknown) => {
+            const message =
+              error instanceof Error ? error.message : String(error)
+            core.error(
+              `Failed timeout termination pid=${currentRunning.pid} grace=${request.terminationGraceSeconds}s: ${message}`,
+            )
+          })
+      }, request.timeoutSeconds * 1000)
+    }
+
+    const completion = await currentRunning.completion
 
     if (timeoutTimer) {
       clearTimeout(timeoutTimer)
@@ -181,6 +192,19 @@ async function runAttempt(
       attempt,
       outcome,
       exitCode: completion.exitCode,
+    }
+  } catch (error: unknown) {
+    if (timeoutTimer) {
+      clearTimeout(timeoutTimer)
+    }
+
+    const message = error instanceof Error ? error.message : String(error)
+    core.error(`Attempt ${attempt} failed to execute command: ${message}`)
+
+    return {
+      attempt,
+      outcome: 'error',
+      exitCode: null,
     }
   } finally {
     process.off('SIGTERM', onSigterm)

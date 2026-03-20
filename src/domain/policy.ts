@@ -11,24 +11,33 @@ export function shouldRetryFailure(
   exitCode: number | null,
   policy: RetryPolicy,
 ): boolean {
-  if (outcome === 'success') {
-    return false
-  }
-
-  if (policy.retryOn === 'error' && outcome !== 'error') {
-    return false
-  }
-
-  if (policy.retryOn === 'timeout' && outcome !== 'timeout') {
-    return false
-  }
-
-  if (outcome === 'error' && policy.retryOnExitCodes) {
-    if (exitCode === null) {
+  switch (outcome) {
+    case 'success':
       return false
-    }
-    return policy.retryOnExitCodes.has(exitCode)
-  }
 
-  return true
+    case 'timeout':
+      if (policy.retryOn === 'error') {
+        return false
+      }
+      return true
+
+    case 'error':
+      if (policy.retryOn === 'timeout') {
+        return false
+      }
+
+      if (policy.retryOnExitCodes) {
+        if (exitCode === null) {
+          return false
+        }
+        return policy.retryOnExitCodes.has(exitCode)
+      }
+
+      return true
+
+    default: {
+      const _exhaustiveCheck: never = outcome
+      return _exhaustiveCheck
+    }
+  }
 }
