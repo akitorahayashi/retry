@@ -1,0 +1,307 @@
+# This file is auto-generated. Do not edit manually.
+# Jules Scribe — Documentation Maintenance
+#
+# Orchestrates the scribe layer for canonical documentation synchronization.
+# Supports direct dispatch and reusable invocation.
+
+name: Jules Scribe
+
+on:
+  workflow_dispatch:
+    inputs:
+      mock:
+        description: 'Run in mock mode (creates branches/PRs without Jules API)'
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      mock:
+        description: 'Run in mock mode (creates branches/PRs without Jules API)'
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: 'jules-worker'
+  cancel-in-progress: false
+
+env:
+  MOCK_MODE: ${{ github.event_name == 'workflow_call' && inputs.mock == true || github.event.inputs.mock == 'true' }}
+  JULES_MOCK_TAG: ${{ format('mock_run_{0}', github.run_id) }}
+  JLO_RUN_FLAGS: ${{ ((github.event_name == 'workflow_call' && inputs.mock == true) || github.event.inputs.mock == 'true') && '--mock' || '' }}
+  JLO_TARGET_BRANCH: 'main'
+  JULES_WORKER_BRANCH: 'jules'
+
+jobs:
+  # ============================================================
+  # Phase 0: Bootstrap runtime repository on worker branch
+  # ============================================================
+
+
+  bootstrap:
+    
+    if: >-
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') &&
+      
+      true
+      
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ secrets.JLO_BOT_PAT }}
+    steps:
+      - name: Validate branch variables
+        run: |
+          set -euo pipefail
+          if [ -z "${JLO_TARGET_BRANCH:-}" ]; then
+            echo "::error::JLO_TARGET_BRANCH is required."
+            exit 1
+          fi
+          if [ -z "${JULES_WORKER_BRANCH:-}" ]; then
+            echo "::error::JULES_WORKER_BRANCH is required."
+            exit 1
+          fi
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: 'main'
+          fetch-depth: 0
+          token: ${{ secrets.JLO_BOT_PAT }}
+
+
+      - name: Configure Git
+        run: |
+          set -euo pipefail
+          git config user.name "aria"
+          git config user.email "aria67323@gmail.com"
+
+      - name: Install jlo
+        uses: asterismhq/setup-jlo@v1
+        with:
+          token: ${{ secrets.JLO_RELEASE_PAT }}
+          version: '23.3.0'
+          submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
+
+      - name: Sync worker branch
+        run: jlo workflow bootstrap worker-branch
+
+      - name: Bootstrap managed files
+        run: jlo workflow bootstrap managed-files
+
+      - name: Clean exchange directory state
+        if: ${{ env.MOCK_MODE != 'true' }}
+        env:
+          PRESERVE_EXCHANGE: ${{ '' }}
+        run: |
+          set -euo pipefail
+          has_preserve=false
+          preserve_args=()
+          for preserve in ${PRESERVE_EXCHANGE}; do
+            has_preserve=true
+            preserve_args+=(--preserve "${preserve}")
+          done
+          if [ "${has_preserve}" = "true" ]; then
+            jlo workflow bootstrap clean-exchange "${preserve_args[@]}"
+          else
+            jlo workflow bootstrap clean-exchange
+          fi
+
+      - name: Validate repository structure
+        run: jlo workflow doctor structure
+
+      - name: Create bootstrap sync PR to worker branch
+        id: sync_pr
+        run: |
+          set -euo pipefail
+          pr_body=$(cat <<EOF
+          Automated bootstrap update for the runtime workspace.
+
+          - synchronize ${JLO_TARGET_BRANCH} into ${JULES_WORKER_BRANCH} via \`jlo workflow bootstrap worker-branch\`
+          - bootstrap managed files via \`jlo workflow bootstrap managed-files\`
+          - reset exchange state via \`jlo workflow bootstrap clean-exchange\`
+          EOF
+          )
+          jlo_version="$(jlo --version | cut -d ' ' -f 2)"
+          jlo workflow create-sync-pr \
+            --change-token "bootstrap" \
+            --commit-message "chore: bootstrap .jules/ runtime repository [jlo ${jlo_version}]" \
+            --pr-title "chore: bootstrap runtime workspace" \
+            --pr-body "${pr_body}"
+
+
+      - name: Wait for bootstrap sync PR merge
+        id: wait_for_sync_pr
+        if: ${{ fromJSON(steps.sync_pr.outputs.json || '{}').applied == true }}
+        env:
+          GH_TOKEN: ${{ secrets.JLO_BOT_PAT }}
+          PR_NUMBER: ${{ fromJSON(steps.sync_pr.outputs.json || '{}').pr_number }}
+        uses: akitorahayashi/retry@v1
+        with:
+          command: >-
+            jlo workflow gh inspect-pr-merge "$PR_NUMBER"
+          max_attempts: '60'
+          retry_on: error
+          retry_on_exit_codes: '11'
+          retry_delay_seconds: '5'
+
+
+  # ============================================================
+  # Phase 1: Run scribe
+  # ============================================================
+
+  
+  
+  request-scribe-run:
+    needs: ["bootstrap"]
+    if: |
+      !cancelled() &&
+      needs.bootstrap.result == 'success'
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      json: ${{ steps.run.outputs.json }}
+    env:
+      JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
+      GH_TOKEN: ${{ secrets.JLO_BOT_PAT }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: 'main'
+          fetch-depth: 0
+          token: ${{ secrets.JLO_BOT_PAT }}
+
+
+      - name: Configure Git
+        run: |
+          set -euo pipefail
+          git config user.name "aria"
+          git config user.email "aria67323@gmail.com"
+
+      - name: Install jlo
+        uses: asterismhq/setup-jlo@v1
+        with:
+          token: ${{ secrets.JLO_RELEASE_PAT }}
+          version: '23.3.0'
+          submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
+      - name: Run scribe
+        id: run
+        run: |
+          set -euo pipefail
+          result=$(jlo run --json scribe ${{ env.JLO_RUN_FLAGS }})
+          echo "${result}"
+          echo "json=${result}" >> "$GITHUB_OUTPUT"
+
+  report-scribe-status:
+    needs: ["bootstrap", "request-scribe-run"]
+    if: |
+      !cancelled() &&
+      always() &&
+      needs.bootstrap.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      json: ${{ steps.report.outputs.json }}
+    steps:
+      - name: Report Run scribe status
+        id: report
+        shell: bash
+        run: |
+          set -euo pipefail
+          requested_flag='${{ true }}'
+          request_result='${{ needs.request-scribe-run.result }}'
+          request_count='${{ fromJSON(needs.request-scribe-run.outputs.json || '{}').number_of_api_requests_succeeded || 0 }}'
+          should_wait='${{ fromJSON(needs.request-scribe-run.outputs.json || '{}').should_wait == true }}'
+          if [ "${requested_flag}" = "true" ]; then
+            if [ "${request_result}" != "success" ]; then
+              echo "::error::Expected successful run request for 'scribe' but got '${request_result}'."
+              exit 1
+            fi
+            requested=false
+            if [ "${should_wait}" = "true" ]; then
+              requested=true
+            fi
+          else
+            if [ "${request_result}" != "skipped" ]; then
+              echo "::error::Expected skipped run request for 'scribe' but got '${request_result}'."
+              exit 1
+            fi
+            requested=false
+          fi
+
+          json="$(printf '{"requested":%s,"count":%s}\n' "${requested}" "${request_count}")"
+          echo "${json}"
+          echo "json=${json}" >> "$GITHUB_OUTPUT"
+  # ============================================================
+  # Phase 2: Cleanup mock artifacts
+  # ============================================================
+
+
+  cleanup-mock-artifacts:
+    needs: ["report-scribe-status"]
+    if: |
+      !cancelled() &&
+      always() &&
+      (
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.mock == 'true') ||
+        (github.event_name == 'workflow_call' && inputs.mock == true)
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ secrets.JLO_BOT_PAT }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+    steps:
+      - name: Validate branch variables
+        run: |
+          set -euo pipefail
+          if [ -z "${JLO_TARGET_BRANCH:-}" ]; then
+            echo "::error::JLO_TARGET_BRANCH is required."
+            exit 1
+          fi
+          if [ -z "${JULES_WORKER_BRANCH:-}" ]; then
+            echo "::error::JULES_WORKER_BRANCH is required."
+            exit 1
+          fi
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: 'jules'
+          fetch-depth: 0
+          token: ${{ secrets.JLO_BOT_PAT }}
+
+
+      - name: Configure Git
+        run: |
+          set -euo pipefail
+          git config user.name "aria"
+          git config user.email "aria67323@gmail.com"
+
+      - name: Install jlo
+        uses: asterismhq/setup-jlo@v1
+        with:
+          token: ${{ secrets.JLO_RELEASE_PAT }}
+          version: '23.3.0'
+          submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
+
+      - name: Cleanup mock artifacts for this run
+        run: |
+          jlo workflow clean-mock --mock-tag "$JULES_MOCK_TAG"
+
+      - name: Validate repository structure
+        run: jlo workflow doctor structure
+
+      - name: Create mock cleanup sync PR
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain .jules)" ]; then
+            echo "No mock cleanup changes detected."
+            exit 0
+          fi
+          jlo workflow create-sync-pr \
+            --change-token "mock-cleanup-${JULES_MOCK_TAG}" \
+            --commit-message "jules: cleanup mock artifacts ${JULES_MOCK_TAG}" \
+            --pr-title "chore: cleanup mock artifacts ${JULES_MOCK_TAG}" \
+            --pr-body "Automated cleanup for mock run ${JULES_MOCK_TAG}."
+

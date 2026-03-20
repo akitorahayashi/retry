@@ -1,12 +1,12 @@
 # Documentation
 
-This directory is the central documentation index for `act-tmpl`.
+This directory is the central documentation index for `retry`.
 
 ## Usage
 
-- [Usage](usage.md): workflow examples, install modes, outputs, and local verification entrypoints
+- [Usage](usage.md): workflow examples, retry outputs, and local verification entrypoints
 
-The action usage describes message rendering inputs and `rendered-message` output behavior.
+The action usage describes retry policy inputs and final execution outputs.
 
 ## Architecture
 
@@ -14,4 +14,4 @@ The action usage describes message rendering inputs and `rendered-message` outpu
 
 ## Configuration
 
-- [Action Inputs](configuration/inputs.md): action inputs, defaults, and output values
+- [Action Inputs](configuration/inputs.md): action input and output reference

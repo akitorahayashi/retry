@@ -1,0 +1,6 @@
+# jlo setup configuration
+# List the tools you want to install (options: jlo setup list)
+
+tools:
+  - gh
+  - just

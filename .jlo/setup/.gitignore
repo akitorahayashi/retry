@@ -1,0 +1,2 @@
+# Ignore secret environment configuration only
+secrets.toml

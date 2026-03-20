@@ -25643,7 +25643,7 @@ module.exports = {
 
 /***/ }),
 
-/***/ 1729:
+/***/ 8340:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -25682,135 +25682,502 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.readRequiredInput = readRequiredInput;
-exports.readOptionalInput = readOptionalInput;
+exports.emitOutputs = emitOutputs;
 const core = __importStar(__nccwpck_require__(7484));
-function readRequiredInput(name) {
+function emitOutputs(result) {
+    core.setOutput('attempts', result.attempts);
+    core.setOutput('final_exit_code', result.finalExitCode === null ? '' : String(result.finalExitCode));
+    core.setOutput('final_outcome', result.finalOutcome);
+    core.setOutput('succeeded', String(result.succeeded));
+}
+
+
+/***/ }),
+
+/***/ 2316:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.readInputs = readInputs;
+const core = __importStar(__nccwpck_require__(7484));
+function readInputs() {
+    const command = readRequiredString('command');
+    return {
+        command,
+        maxAttempts: readRequiredInteger('max_attempts', { minimum: 1 }),
+        shell: readOptionalString('shell') ?? 'bash',
+        timeoutSeconds: readOptionalInteger('timeout_seconds', { minimum: 1 }),
+        retryDelaySeconds: readOptionalInteger('retry_delay_seconds', { minimum: 0 }) ?? 0,
+        retryDelayScheduleSeconds: readIntegerList('retry_delay_schedule_seconds', {
+            minimum: 0,
+        }),
+        retryOn: readRetryOn('retry_on'),
+        retryOnExitCodes: readExitCodeSet('retry_on_exit_codes'),
+        continueOnError: readBooleanFlag('continue_on_error'),
+        terminationGraceSeconds: readOptionalInteger('termination_grace_seconds', { minimum: 1 }) ?? 5,
+    };
+}
+function readRequiredString(name) {
     const value = core.getInput(name);
-    if (!value || value.trim().length === 0) {
+    const trimmed = value.trim();
+    if (trimmed.length === 0) {
         throw new Error(`Input '${name}' is required.`);
     }
-    return value.trim();
+    return trimmed;
 }
-function readOptionalInput(name) {
+function readOptionalString(name) {
     const value = core.getInput(name);
-    if (!value || value.trim().length === 0) {
+    const trimmed = value.trim();
+    return trimmed.length === 0 ? undefined : trimmed;
+}
+function readOptionalInteger(name, options) {
+    const value = readOptionalString(name);
+    if (!value) {
         return undefined;
     }
-    return value.trim();
+    return parseInteger(name, value, options);
 }
-
-
-/***/ }),
-
-/***/ 8948:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
-
-"use strict";
-
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
+function readRequiredInteger(name, options) {
+    const value = readRequiredString(name);
+    return parseInteger(name, value, options);
+}
+function parseInteger(name, value, options) {
+    if (!/^[-+]?\d+$/.test(value)) {
+        throw new Error(`Input '${name}' must be an integer.`);
     }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.emitRenderedMessageOutput = emitRenderedMessageOutput;
-const core = __importStar(__nccwpck_require__(7484));
-function emitRenderedMessageOutput(renderedMessage) {
-    core.setOutput('rendered-message', renderedMessage);
+    const parsed = Number.parseInt(value, 10);
+    if (parsed < options.minimum) {
+        throw new Error(`Input '${name}' must be >= ${options.minimum}.`);
+    }
+    return parsed;
 }
-
-
-/***/ }),
-
-/***/ 1235:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.resolveActionRequest = resolveActionRequest;
-const inputs_1 = __nccwpck_require__(1729);
-function resolveActionRequest() {
-    return {
-        message: (0, inputs_1.readRequiredInput)('message'),
-        prefix: (0, inputs_1.readOptionalInput)('prefix'),
-        suffix: (0, inputs_1.readOptionalInput)('suffix'),
-        uppercase: parseBooleanFlag((0, inputs_1.readOptionalInput)('uppercase')),
-    };
-}
-function parseBooleanFlag(value) {
+function readBooleanFlag(name) {
+    const value = readOptionalString(name);
     if (!value) {
         return false;
     }
-    switch (value.toLowerCase()) {
+    const normalized = value.toLowerCase();
+    switch (normalized) {
         case '1':
         case 'true':
         case 'yes':
         case 'on':
             return true;
-        default:
+        case '0':
+        case 'false':
+        case 'no':
+        case 'off':
             return false;
+        default:
+            throw new Error(`Input '${name}' must be a boolean token: 1, 0, true, false, yes, no, on, off.`);
     }
+}
+function readRetryOn(name) {
+    const value = readOptionalString(name);
+    if (!value) {
+        return 'any';
+    }
+    const normalized = value.toLowerCase();
+    if (normalized === 'any' ||
+        normalized === 'error' ||
+        normalized === 'timeout') {
+        return normalized;
+    }
+    throw new Error("Input 'retry_on' must be one of: any, error, timeout.");
+}
+function readIntegerList(name, options) {
+    const value = readOptionalString(name);
+    if (!value) {
+        return [];
+    }
+    return value
+        .split(',')
+        .map((item) => parseInteger(name, item.trim(), options));
+}
+function readExitCodeSet(name) {
+    const values = readIntegerList(name, { minimum: 0 });
+    if (values.length === 0) {
+        return undefined;
+    }
+    return new Set(values);
 }
 
 
 /***/ }),
 
-/***/ 9601:
+/***/ 8758:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.renderMessage = renderMessage;
-const message_template_1 = __nccwpck_require__(9290);
-function renderMessage(request) {
-    return (0, message_template_1.renderMessageTemplate)(request);
+exports.runShellCommand = runShellCommand;
+const node_child_process_1 = __nccwpck_require__(1421);
+function runShellCommand(command, shell) {
+    const child = (0, node_child_process_1.spawn)(command, {
+        shell,
+        detached: true,
+        stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    if (typeof child.pid !== 'number') {
+        throw new Error('Failed to start command process.');
+    }
+    child.stdout?.on('data', (chunk) => {
+        try {
+            process.stdout.write(chunk);
+        }
+        catch {
+            // Ignore stdout forwarding failures so command completion can still resolve.
+        }
+    });
+    child.stderr?.on('data', (chunk) => {
+        try {
+            process.stderr.write(chunk);
+        }
+        catch {
+            // Ignore stderr forwarding failures so command completion can still resolve.
+        }
+    });
+    let running = true;
+    const completion = new Promise((resolve, reject) => {
+        child.once('error', (error) => {
+            running = false;
+            reject(error);
+        });
+        child.once('close', (exitCode) => {
+            running = false;
+            resolve({ exitCode });
+        });
+    });
+    return {
+        pid: child.pid,
+        completion,
+        isRunning: () => running,
+    };
 }
 
 
 /***/ }),
 
-/***/ 9290:
+/***/ 5991:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.renderMessageTemplate = renderMessageTemplate;
-function renderMessageTemplate(template) {
-    const fragments = [template.prefix, template.message, template.suffix].filter((fragment) => typeof fragment === 'string' && fragment.length > 0);
-    const rendered = fragments.join(' ');
-    return template.uppercase ? rendered.toUpperCase() : rendered;
+exports.sleep = sleep;
+function sleep(milliseconds) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, milliseconds);
+    });
+}
+
+
+/***/ }),
+
+/***/ 5680:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.terminateProcessTree = terminateProcessTree;
+async function terminateProcessTree(pid, graceSeconds) {
+    sendSignal(pid, 'SIGTERM');
+    await wait(graceSeconds * 1000);
+    if (isAlive(pid)) {
+        sendSignal(pid, 'SIGKILL');
+    }
+}
+function sendSignal(pid, signal) {
+    try {
+        process.kill(-pid, signal);
+        return;
+    }
+    catch {
+        // Fallback to direct pid signaling when process groups are not available.
+    }
+    try {
+        process.kill(pid, signal);
+    }
+    catch {
+        // The process may already be gone.
+    }
+}
+function isAlive(pid) {
+    try {
+        process.kill(pid, 0);
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
+function wait(milliseconds) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, milliseconds);
+    });
+}
+
+
+/***/ }),
+
+/***/ 5167:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.executeRetry = executeRetry;
+const core = __importStar(__nccwpck_require__(7484));
+const run_shell_command_1 = __nccwpck_require__(8758);
+const sleep_1 = __nccwpck_require__(5991);
+const terminate_process_tree_1 = __nccwpck_require__(5680);
+const policy_1 = __nccwpck_require__(4596);
+const result_1 = __nccwpck_require__(635);
+const schedule_1 = __nccwpck_require__(5579);
+const runtimeDependencies = {
+    runCommand: run_shell_command_1.runShellCommand,
+    sleep: sleep_1.sleep,
+    terminateProcessTree: terminate_process_tree_1.terminateProcessTree,
+};
+async function executeRetry(request, dependencies = runtimeDependencies) {
+    const policy = {
+        retryOn: request.retryOn,
+        retryOnExitCodes: request.retryOnExitCodes,
+    };
+    const schedule = {
+        defaultDelaySeconds: request.retryDelaySeconds,
+        retryDelayScheduleSeconds: request.retryDelayScheduleSeconds,
+    };
+    let finalAttempt;
+    for (let attempt = 1; attempt <= request.maxAttempts; attempt += 1) {
+        finalAttempt = await core.group(`Attempt ${attempt}/${request.maxAttempts}`, async () => runAttempt(request, attempt, dependencies));
+        if (finalAttempt.outcome === 'success') {
+            return (0, result_1.toFinalResult)(finalAttempt);
+        }
+        if (attempt >= request.maxAttempts) {
+            return (0, result_1.toFinalResult)(finalAttempt);
+        }
+        const retryable = (0, policy_1.shouldRetryFailure)(finalAttempt.outcome, finalAttempt.exitCode, policy);
+        if (!retryable) {
+            core.info('Failure is outside retry policy. Stopping without additional retries.');
+            return (0, result_1.toFinalResult)(finalAttempt);
+        }
+        const retryIndex = attempt;
+        const delaySeconds = (0, schedule_1.resolveRetryDelaySeconds)(retryIndex, schedule);
+        core.warning(`Attempt ${attempt} failed with ${finalAttempt.outcome} (exit code: ${formatExitCode(finalAttempt.exitCode)}). Retrying.`);
+        if (delaySeconds > 0) {
+            core.info(`Waiting ${delaySeconds}s before next attempt.`);
+            await dependencies.sleep(delaySeconds * 1000);
+        }
+    }
+    if (!finalAttempt) {
+        throw new Error('Retry execution did not produce an attempt result.');
+    }
+    return (0, result_1.toFinalResult)(finalAttempt);
+}
+async function runAttempt(request, attempt, dependencies) {
+    core.info(`Running command: ${request.command}`);
+    const running = dependencies.runCommand(request.command, request.shell);
+    let timedOut = false;
+    let timeoutTimer;
+    const onSignal = async (signal) => {
+        if (running.isRunning()) {
+            core.warning(`Received ${signal}. Terminating active command process tree.`);
+            try {
+                await dependencies.terminateProcessTree(running.pid, request.terminationGraceSeconds);
+            }
+            catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to terminate process tree pid=${running.pid} grace=${request.terminationGraceSeconds}s signal=${signal}: ${message}`);
+            }
+        }
+    };
+    const onSigterm = () => {
+        onSignal('SIGTERM').catch((error) => {
+            const message = error instanceof Error ? error.message : String(error);
+            core.error(`SIGTERM handler failed: ${message}`);
+        });
+    };
+    const onSigint = () => {
+        onSignal('SIGINT').catch((error) => {
+            const message = error instanceof Error ? error.message : String(error);
+            core.error(`SIGINT handler failed: ${message}`);
+        });
+    };
+    process.once('SIGTERM', onSigterm);
+    process.once('SIGINT', onSigint);
+    if (request.timeoutSeconds !== undefined) {
+        timeoutTimer = setTimeout(() => {
+            timedOut = true;
+            core.warning(`Attempt ${attempt} timed out after ${request.timeoutSeconds}s.`);
+            dependencies
+                .terminateProcessTree(running.pid, request.terminationGraceSeconds)
+                .catch((error) => {
+                const message = error instanceof Error ? error.message : String(error);
+                core.error(`Failed timeout termination pid=${running.pid} grace=${request.terminationGraceSeconds}s: ${message}`);
+            });
+        }, request.timeoutSeconds * 1000);
+    }
+    try {
+        const completion = await running.completion;
+        if (timeoutTimer) {
+            clearTimeout(timeoutTimer);
+        }
+        const outcome = timedOut
+            ? 'timeout'
+            : completion.exitCode === 0
+                ? 'success'
+                : 'error';
+        core.info(`Attempt ${attempt} completed with outcome=${outcome} exitCode=${formatExitCode(completion.exitCode)}`);
+        return {
+            attempt,
+            outcome,
+            exitCode: completion.exitCode,
+        };
+    }
+    finally {
+        process.off('SIGTERM', onSigterm);
+        process.off('SIGINT', onSigint);
+    }
+}
+function formatExitCode(exitCode) {
+    return exitCode === null ? 'none' : String(exitCode);
+}
+
+
+/***/ }),
+
+/***/ 4596:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.shouldRetryFailure = shouldRetryFailure;
+function shouldRetryFailure(outcome, exitCode, policy) {
+    if (outcome === 'success') {
+        return false;
+    }
+    if (policy.retryOn === 'error' && outcome !== 'error') {
+        return false;
+    }
+    if (policy.retryOn === 'timeout' && outcome !== 'timeout') {
+        return false;
+    }
+    if (outcome === 'error' && policy.retryOnExitCodes) {
+        if (exitCode === null) {
+            return false;
+        }
+        return policy.retryOnExitCodes.has(exitCode);
+    }
+    return true;
+}
+
+
+/***/ }),
+
+/***/ 635:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.toFinalResult = toFinalResult;
+function toFinalResult(result) {
+    return {
+        attempts: result.attempt,
+        finalExitCode: result.exitCode,
+        finalOutcome: result.outcome,
+        succeeded: result.outcome === 'success',
+    };
+}
+
+
+/***/ }),
+
+/***/ 5579:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.resolveRetryDelaySeconds = resolveRetryDelaySeconds;
+function resolveRetryDelaySeconds(retryIndex, schedule) {
+    const scheduleValue = schedule.retryDelayScheduleSeconds[retryIndex - 1];
+    if (typeof scheduleValue === 'number') {
+        return scheduleValue;
+    }
+    return schedule.defaultDelaySeconds;
 }
 
 
@@ -25856,14 +26223,16 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7484));
-const outputs_1 = __nccwpck_require__(8948);
-const request_1 = __nccwpck_require__(1235);
-const render_message_1 = __nccwpck_require__(9601);
+const emit_outputs_1 = __nccwpck_require__(8340);
+const read_inputs_1 = __nccwpck_require__(2316);
+const execute_retry_1 = __nccwpck_require__(5167);
 async function run() {
-    const request = (0, request_1.resolveActionRequest)();
-    const renderedMessage = (0, render_message_1.renderMessage)(request);
-    (0, outputs_1.emitRenderedMessageOutput)(renderedMessage);
-    core.debug('Rendered message generated successfully.');
+    const request = (0, read_inputs_1.readInputs)();
+    const result = await (0, execute_retry_1.executeRetry)(request);
+    (0, emit_outputs_1.emitOutputs)(result);
+    if (!result.succeeded && !request.continueOnError) {
+        core.setFailed(`Command failed after ${result.attempts} attempts. final_outcome=${result.finalOutcome} final_exit_code=${result.finalExitCode ?? 'none'}`);
+    }
 }
 if (require.main === require.cache[eval('__filename')]) {
     run().catch((error) => {
@@ -25979,6 +26348,14 @@ module.exports = require("https");
 
 "use strict";
 module.exports = require("net");
+
+/***/ }),
+
+/***/ 1421:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:child_process");
 
 /***/ }),
 

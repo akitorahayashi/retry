@@ -26,3 +26,7 @@ jobs:
   test:
     name: Test
     uses: ./.github/workflows/run-tests.yml
+
+  verify-e2e-linux:
+    name: Verify E2E Linux
+    uses: ./.github/workflows/verify-e2e-linux.yml

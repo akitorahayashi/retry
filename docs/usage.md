@@ -1,42 +1,50 @@
 # Usage
 
-`act-tmpl` renders a final message string from action inputs.
+`retry` executes one command per attempt until success or retry exhaustion.
+
+The repository-owned end-to-end verification path targets Linux runners.
 
 ## Standard Workflow Usage
 
 ```yaml
-- uses: akitorahayashi/act-tmpl@v1
+- uses: akitorahayashi/retry@v1
   with:
-    message: hello world
+    command: npm test
+    max_attempts: '3'
 ```
 
-This default form emits `hello world` as `rendered-message`.
+This configuration retries non-zero command failures up to three attempts.
 
 ## Input Behavior
 
-The action reads:
+Required inputs:
 
-- required `message`
-- optional `prefix`
-- optional `suffix`
-- optional `uppercase`
+- `command`
+- `max_attempts`
+
+Optional policy inputs include timeout, fixed delay, delay schedule, failure class policy, exit-code filters, continue-on-error mode, and termination grace timing.
 
 The output surface is:
 
-- `rendered-message`
+- `attempts`
+- `final_exit_code`
+- `final_outcome`
+- `succeeded`
 
-## Rendering Example
+## Timeout-Only Retry Example
 
 ```yaml
-- uses: akitorahayashi/act-tmpl@v1
+- uses: akitorahayashi/retry@v1
   with:
-    message: world
-    prefix: hello
-    suffix: again
-    uppercase: true
+    command: ./scripts/check-service.sh
+    max_attempts: '5'
+    timeout_seconds: '45'
+    retry_on: timeout
+    retry_delay_schedule_seconds: 1,2,5,10
+    termination_grace_seconds: '3'
 ```
 
-The emitted output in this example is `HELLO WORLD AGAIN`.
+This configuration retries only timeout failures and applies attempt-specific delays.
 
 ## Local Verification
 
@@ -50,14 +58,3 @@ Repository-local verification commands are:
 
 `just fix` refreshes committed `dist/` after source-side fixes.
 `just check` includes committed `dist/` verification.
-
-Targeted npm commands remain available behind the `just` recipes:
-
-- `npm run format`
-- `npm run format:check`
-- `npm run lint`
-- `npm run lint:fix`
-- `npm test`
-- `npm run typecheck`
-- `npm run package`
-- `npm run verify:dist`

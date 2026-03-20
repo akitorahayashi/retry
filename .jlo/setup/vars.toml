@@ -1,0 +1,5 @@
+# Non-secret environment configuration for jlo setup
+# Edit values as needed before running install.sh
+
+[JUST_VERSION]
+note = "Version of just to install (leave empty for latest)"
