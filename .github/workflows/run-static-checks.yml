@@ -22,5 +22,14 @@ jobs:
       - name: Setup Development Environment
         uses: ./.github/actions/setup
 
-      - name: Run Repository Checks
-        run: just check
+      - name: Check Formatting
+        run: just format:check
+
+      - name: Lint Code
+        run: just lint
+
+      - name: Typecheck
+        run: just typecheck
+
+      - name: Verify Dist
+        run: just verify:dist

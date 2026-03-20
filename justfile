@@ -18,12 +18,17 @@ fix:
     npm run lint:fix
     npm run package
 
-# Run formatting checks, lint, typecheck, and dist verification
-check:
+# Run formatting checks
+format:check:
     npm run format:check
+
+# Run linter
+lint:
     npm run lint
+
+# Run typecheck
+typecheck:
     npm run typecheck
-    npm run verify:dist
 
 # Run test suite
 test:
@@ -34,7 +39,7 @@ package:
     npm run package
 
 # Verify committed dist output matches generated output
-verify-dist:
+verify:dist:
     npm run verify:dist
 
 # Remove repository-local generated artifacts
