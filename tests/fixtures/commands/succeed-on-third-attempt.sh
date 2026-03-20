@@ -3,6 +3,9 @@ set -euo pipefail
 
 state_file="$1"
 count=0
+state_dir="$(dirname "$state_file")"
+
+mkdir -p "$state_dir"
 
 if [[ -f "$state_file" ]]; then
   count="$(cat "$state_file")"

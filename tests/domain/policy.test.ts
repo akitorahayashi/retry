@@ -38,6 +38,20 @@ describe('shouldRetryFailure', () => {
     ).toBe(true)
   })
 
+  it('retries only error when policy is error', () => {
+    expect(
+      shouldRetryFailure('error', 1, {
+        retryOn: 'error',
+      }),
+    ).toBe(true)
+
+    expect(
+      shouldRetryFailure('timeout', null, {
+        retryOn: 'error',
+      }),
+    ).toBe(false)
+  })
+
   it('applies exit-code filter for error outcomes', () => {
     expect(
       shouldRetryFailure('error', 7, {
@@ -48,6 +62,13 @@ describe('shouldRetryFailure', () => {
 
     expect(
       shouldRetryFailure('error', 2, {
+        retryOn: 'any',
+        retryOnExitCodes: new Set([7, 9]),
+      }),
+    ).toBe(false)
+
+    expect(
+      shouldRetryFailure('error', null, {
         retryOn: 'any',
         retryOnExitCodes: new Set([7, 9]),
       }),

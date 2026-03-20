@@ -25858,10 +25858,20 @@ function runShellCommand(command, shell) {
         throw new Error('Failed to start command process.');
     }
     child.stdout?.on('data', (chunk) => {
-        process.stdout.write(chunk);
+        try {
+            process.stdout.write(chunk);
+        }
+        catch {
+            // Ignore stdout forwarding failures so command completion can still resolve.
+        }
     });
     child.stderr?.on('data', (chunk) => {
-        process.stderr.write(chunk);
+        try {
+            process.stderr.write(chunk);
+        }
+        catch {
+            // Ignore stderr forwarding failures so command completion can still resolve.
+        }
     });
     let running = true;
     const completion = new Promise((resolve, reject) => {
@@ -26043,14 +26053,26 @@ async function runAttempt(request, attempt, dependencies) {
     const onSignal = async (signal) => {
         if (running.isRunning()) {
             core.warning(`Received ${signal}. Terminating active command process tree.`);
-            await dependencies.terminateProcessTree(running.pid, request.terminationGraceSeconds);
+            try {
+                await dependencies.terminateProcessTree(running.pid, request.terminationGraceSeconds);
+            }
+            catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                core.error(`Failed to terminate process tree pid=${running.pid} grace=${request.terminationGraceSeconds}s signal=${signal}: ${message}`);
+            }
         }
     };
     const onSigterm = () => {
-        void onSignal('SIGTERM');
+        onSignal('SIGTERM').catch((error) => {
+            const message = error instanceof Error ? error.message : String(error);
+            core.error(`SIGTERM handler failed: ${message}`);
+        });
     };
     const onSigint = () => {
-        void onSignal('SIGINT');
+        onSignal('SIGINT').catch((error) => {
+            const message = error instanceof Error ? error.message : String(error);
+            core.error(`SIGINT handler failed: ${message}`);
+        });
     };
     process.once('SIGTERM', onSigterm);
     process.once('SIGINT', onSigint);
@@ -26058,7 +26080,12 @@ async function runAttempt(request, attempt, dependencies) {
         timeoutTimer = setTimeout(() => {
             timedOut = true;
             core.warning(`Attempt ${attempt} timed out after ${request.timeoutSeconds}s.`);
-            void dependencies.terminateProcessTree(running.pid, request.terminationGraceSeconds);
+            dependencies
+                .terminateProcessTree(running.pid, request.terminationGraceSeconds)
+                .catch((error) => {
+                const message = error instanceof Error ? error.message : String(error);
+                core.error(`Failed timeout termination pid=${running.pid} grace=${request.terminationGraceSeconds}s: ${message}`);
+            });
         }, request.timeoutSeconds * 1000);
     }
     try {

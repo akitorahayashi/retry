@@ -112,19 +112,32 @@ async function runAttempt(
       core.warning(
         `Received ${signal}. Terminating active command process tree.`,
       )
-      await dependencies.terminateProcessTree(
-        running.pid,
-        request.terminationGraceSeconds,
-      )
+      try {
+        await dependencies.terminateProcessTree(
+          running.pid,
+          request.terminationGraceSeconds,
+        )
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error)
+        core.error(
+          `Failed to terminate process tree pid=${running.pid} grace=${request.terminationGraceSeconds}s signal=${signal}: ${message}`,
+        )
+      }
     }
   }
 
   const onSigterm = () => {
-    void onSignal('SIGTERM')
+    onSignal('SIGTERM').catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error)
+      core.error(`SIGTERM handler failed: ${message}`)
+    })
   }
 
   const onSigint = () => {
-    void onSignal('SIGINT')
+    onSignal('SIGINT').catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error)
+      core.error(`SIGINT handler failed: ${message}`)
+    })
   }
 
   process.once('SIGTERM', onSigterm)
@@ -136,10 +149,14 @@ async function runAttempt(
       core.warning(
         `Attempt ${attempt} timed out after ${request.timeoutSeconds}s.`,
       )
-      void dependencies.terminateProcessTree(
-        running.pid,
-        request.terminationGraceSeconds,
-      )
+      dependencies
+        .terminateProcessTree(running.pid, request.terminationGraceSeconds)
+        .catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : String(error)
+          core.error(
+            `Failed timeout termination pid=${running.pid} grace=${request.terminationGraceSeconds}s: ${message}`,
+          )
+        })
     }, request.timeoutSeconds * 1000)
   }
 

@@ -10,27 +10,32 @@ inputs:
   shell:
     description: Shell executable used to run the command on Linux runners
     required: false
+    default: bash
   timeout_seconds:
     description: Per-attempt timeout in seconds
     required: false
   retry_delay_seconds:
     description: Default delay in seconds before the next retry attempt
     required: false
+    default: '0'
   retry_delay_schedule_seconds:
     description: Comma-separated per-retry delay schedule in seconds
     required: false
   retry_on:
     description: Failure class to retry (any, error, timeout)
     required: false
+    default: any
   retry_on_exit_codes:
     description: Comma-separated exit codes that are eligible for retry
     required: false
   continue_on_error:
     description: Keep the step successful when all attempts fail
     required: false
+    default: 'false'
   termination_grace_seconds:
     description: Grace period in seconds between graceful and forced termination
     required: false
+    default: '5'
 outputs:
   attempts:
     description: Number of attempts that executed

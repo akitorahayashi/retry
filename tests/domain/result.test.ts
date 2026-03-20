@@ -31,4 +31,19 @@ describe('toFinalResult', () => {
       succeeded: false,
     })
   })
+
+  it('maps error as non-successful final result', () => {
+    expect(
+      toFinalResult({
+        attempt: 1,
+        outcome: 'error',
+        exitCode: 17,
+      }),
+    ).toEqual({
+      attempts: 1,
+      finalExitCode: 17,
+      finalOutcome: 'error',
+      succeeded: false,
+    })
+  })
 })

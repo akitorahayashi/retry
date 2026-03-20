@@ -25,11 +25,19 @@ export function runShellCommand(
   }
 
   child.stdout?.on('data', (chunk) => {
-    process.stdout.write(chunk)
+    try {
+      process.stdout.write(chunk)
+    } catch {
+      // Ignore stdout forwarding failures so command completion can still resolve.
+    }
   })
 
   child.stderr?.on('data', (chunk) => {
-    process.stderr.write(chunk)
+    try {
+      process.stderr.write(chunk)
+    } catch {
+      // Ignore stderr forwarding failures so command completion can still resolve.
+    }
   })
 
   let running = true

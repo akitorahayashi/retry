@@ -28,13 +28,18 @@ describe('action metadata contracts', () => {
     expect(action.inputs.command.required).toBe(true)
     expect(action.inputs.max_attempts.required).toBe(true)
     expect(action.inputs.shell.required).toBe(false)
+    expect(action.inputs.shell.default).toBe('bash')
     expect(action.inputs.timeout_seconds.required).toBe(false)
     expect(action.inputs.retry_delay_seconds.required).toBe(false)
+    expect(action.inputs.retry_delay_seconds.default).toBe('0')
     expect(action.inputs.retry_delay_schedule_seconds.required).toBe(false)
     expect(action.inputs.retry_on.required).toBe(false)
+    expect(action.inputs.retry_on.default).toBe('any')
     expect(action.inputs.retry_on_exit_codes.required).toBe(false)
     expect(action.inputs.continue_on_error.required).toBe(false)
+    expect(action.inputs.continue_on_error.default).toBe('false')
     expect(action.inputs.termination_grace_seconds.required).toBe(false)
+    expect(action.inputs.termination_grace_seconds.default).toBe('5')
 
     expect(Object.keys(action.outputs)).toEqual(
       expect.arrayContaining([
