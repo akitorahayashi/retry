@@ -1,0 +1,33 @@
+{
+  "name": "act-tmpl",
+  "version": "0.1.0",
+  "description": "TypeScript GitHub Action template repository",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=24.14.0 <25"
+  },
+  "scripts": {
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome check --formatter-enabled=true --linter-enabled=false --assist-enabled=false .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "package": "ncc build -s src/index.ts -o dist --license licenses.txt",
+    "verify:dist": "node ./scripts/verify-dist.mjs"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/github": "^6.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.5",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^24.0.3",
+    "@vercel/ncc": "^0.38.3",
+    "js-yaml": "^4.1.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

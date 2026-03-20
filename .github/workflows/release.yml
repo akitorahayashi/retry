@@ -1,0 +1,79 @@
+# Release Workflow
+#
+# Builds and publishes GitHub releases on tag push.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+jobs:
+  resolve-version:
+    name: Resolve Release Version
+    runs-on: ubuntu-latest
+    outputs:
+      major-tag: ${{ steps.version.outputs.major_tag }}
+
+    steps:
+      - id: version
+        name: Resolve release tags
+        run: |
+          if [[ ! "${GITHUB_REF_NAME}" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "Expected release tag in vX.Y.Z format, got '${GITHUB_REF_NAME}'." >&2
+            exit 1
+          fi
+          echo "major_tag=v${BASH_REMATCH[1]}" >> "${GITHUB_OUTPUT}"
+
+  static-checks:
+    name: Static Checks
+    uses: ./.github/workflows/run-static-checks.yml
+
+  test:
+    name: Test
+    uses: ./.github/workflows/run-tests.yml
+
+  release:
+    name: Publish Release
+    needs: [resolve-version, static-checks, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+
+  move-major-tag:
+    name: Move Major Tag
+    needs: [resolve-version, release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: move-major-tag-${{ needs.resolve-version.outputs.major-tag }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout Tagged Revision
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Update moving major tag
+        env:
+          MAJOR_TAG: ${{ needs.resolve-version.outputs.major-tag }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag --force --annotate "${MAJOR_TAG}" --message "Update ${MAJOR_TAG} to ${GITHUB_REF_NAME}" "${GITHUB_SHA}"
+          git push origin "refs/tags/${MAJOR_TAG}" --force

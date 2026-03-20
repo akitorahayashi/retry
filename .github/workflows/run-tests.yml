@@ -1,0 +1,26 @@
+# Test Workflow
+#
+# Runs Vitest tests.
+
+name: Run Tests
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  run-tests:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Setup Development Environment
+        uses: ./.github/actions/setup
+
+      - name: Run Vitest
+        run: just test

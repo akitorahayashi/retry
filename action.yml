@@ -1,0 +1,22 @@
+name: act-tmpl
+description: Render a message from action inputs
+inputs:
+  message:
+    description: Base message text to render
+    required: true
+  prefix:
+    description: Optional prefix inserted before the message
+    required: false
+  suffix:
+    description: Optional suffix appended after the message
+    required: false
+  uppercase:
+    description: Optional flag to convert the rendered message to uppercase
+    required: false
+    default: false
+outputs:
+  rendered-message:
+    description: Final rendered message output
+runs:
+  using: node24
+  main: dist/index.js
