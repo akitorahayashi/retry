@@ -25849,16 +25849,12 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.delay = delay;
 function delay(milliseconds) {
     let timeoutId;
-    let cancelFunc = () => { };
     const promise = new Promise((resolve) => {
         timeoutId = setTimeout(() => {
             resolve();
         }, milliseconds);
-        cancelFunc = () => {
-            clearTimeout(timeoutId);
-        };
     });
-    return { promise, cancel: cancelFunc };
+    return { promise, cancel: () => clearTimeout(timeoutId) };
 }
 
 
