@@ -31,7 +31,7 @@ describe('executeRetry', () => {
   it('terminates process tree and times out when command execution exceeds timeoutSeconds', async () => {
     vi.useFakeTimers()
 
-    let resolveCompletion: (value: { exitCode: number | null }) => void
+    let resolveCompletion!: (value: { exitCode: number | null }) => void
     const completionPromise = new Promise<{ exitCode: number | null }>(
       (resolve) => {
         resolveCompletion = resolve
@@ -63,7 +63,7 @@ describe('executeRetry', () => {
     expect(terminateProcessTree).toHaveBeenCalledWith(100, 2)
 
     // Simulate process termination by resolving the completion promise
-    resolveCompletion?.({ exitCode: null })
+    resolveCompletion({ exitCode: null })
 
     const result = await resultPromise
     expect(result).toEqual({
@@ -76,7 +76,13 @@ describe('executeRetry', () => {
     vi.useRealTimers()
   })
 
-  it('interrupts running command and terminates process tree on SIGTERM', async () => {
+  it.each([
+    { signal: 'SIGTERM' as const, pid: 200 },
+    { signal: 'SIGINT' as const, pid: 201 },
+  ])('interrupts running command and terminates process tree on $signal', async ({
+    signal,
+    pid,
+  }) => {
     const processOnceSpy = vi
       .spyOn(process, 'once')
       .mockImplementation(() => process)
@@ -84,7 +90,7 @@ describe('executeRetry', () => {
       .spyOn(process, 'off')
       .mockImplementation(() => process)
 
-    let resolveCompletion: (value: { exitCode: number | null }) => void
+    let resolveCompletion!: (value: { exitCode: number | null }) => void
     const completionPromise = new Promise<{ exitCode: number | null }>(
       (resolve) => {
         resolveCompletion = resolve
@@ -93,7 +99,7 @@ describe('executeRetry', () => {
 
     const terminateProcessTree = vi.fn().mockResolvedValue(undefined)
     const runCommand = vi.fn().mockReturnValue({
-      pid: 200,
+      pid,
       completion: completionPromise,
       isRunning: () => true,
     })
@@ -109,85 +115,32 @@ describe('executeRetry', () => {
       terminateProcessTree,
     })
 
-    // Find and trigger the SIGTERM handler
-    const sigtermCall = processOnceSpy.mock.calls.find(
-      (call) => call[0] === 'SIGTERM',
+    // Find and trigger the signal handler
+    const signalCall = processOnceSpy.mock.calls.find(
+      (call) => call[0] === signal,
     )
-    expect(sigtermCall).toBeDefined()
-    const sigtermHandler = sigtermCall?.[1] as () => void
+    expect(signalCall).toBeDefined()
+    const signalHandler = signalCall?.[1] as () => void
 
-    // Simulate receiving SIGTERM
-    sigtermHandler()
+    // Simulate receiving the signal
+    signalHandler()
 
     // terminateProcessTree is async inside the signal handler so wait for microtasks
     await vi.waitFor(() => {
-      expect(terminateProcessTree).toHaveBeenCalledWith(200, 3)
+      expect(terminateProcessTree).toHaveBeenCalledWith(pid, 3)
     })
 
     // Resolve to let the execution finish
-    resolveCompletion?.({ exitCode: null })
+    resolveCompletion({ exitCode: null })
     await resultPromise
 
     // Verify cleanup
-    expect(processOffSpy).toHaveBeenCalledWith('SIGTERM', sigtermHandler)
-    expect(processOffSpy).toHaveBeenCalledWith('SIGINT', expect.any(Function))
-  })
-
-  it('interrupts running command and terminates process tree on SIGINT', async () => {
-    const processOnceSpy = vi
-      .spyOn(process, 'once')
-      .mockImplementation(() => process)
-    const processOffSpy = vi
-      .spyOn(process, 'off')
-      .mockImplementation(() => process)
-
-    let resolveCompletion: (value: { exitCode: number | null }) => void
-    const completionPromise = new Promise<{ exitCode: number | null }>(
-      (resolve) => {
-        resolveCompletion = resolve
-      },
+    const otherSignal = signal === 'SIGTERM' ? 'SIGINT' : 'SIGTERM'
+    expect(processOffSpy).toHaveBeenCalledWith(signal, signalHandler)
+    expect(processOffSpy).toHaveBeenCalledWith(
+      otherSignal,
+      expect.any(Function),
     )
-
-    const terminateProcessTree = vi.fn().mockResolvedValue(undefined)
-    const runCommand = vi.fn().mockReturnValue({
-      pid: 201,
-      completion: completionPromise,
-      isRunning: () => true,
-    })
-
-    const request = createRequest({
-      maxAttempts: 1,
-      terminationGraceSeconds: 3,
-    })
-
-    const resultPromise = executeRetry(request, {
-      runCommand,
-      sleep: vi.fn().mockResolvedValue(undefined),
-      terminateProcessTree,
-    })
-
-    // Find and trigger the SIGINT handler
-    const sigintCall = processOnceSpy.mock.calls.find(
-      (call) => call[0] === 'SIGINT',
-    )
-    expect(sigintCall).toBeDefined()
-    const sigintHandler = sigintCall?.[1] as () => void
-
-    // Simulate receiving SIGINT
-    sigintHandler()
-
-    // terminateProcessTree is async inside the signal handler so wait for microtasks
-    await vi.waitFor(() => {
-      expect(terminateProcessTree).toHaveBeenCalledWith(201, 3)
-    })
-
-    // Resolve to let the execution finish
-    resolveCompletion?.({ exitCode: null })
-    await resultPromise
-
-    // Verify cleanup
-    expect(processOffSpy).toHaveBeenCalledWith('SIGINT', sigintHandler)
-    expect(processOffSpy).toHaveBeenCalledWith('SIGTERM', expect.any(Function))
   })
 
   it('stops when one attempt succeeds', async () => {
