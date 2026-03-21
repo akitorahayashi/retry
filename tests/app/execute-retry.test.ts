@@ -91,6 +91,7 @@ describe('executeRetry', () => {
     const processOffSpy = vi
       .spyOn(process, 'off')
       .mockImplementation(() => process)
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
     let resolveCompletion!: (value: { exitCode: number | null }) => void
     const completionPromise = new Promise<{ exitCode: number | null }>(

@@ -4,7 +4,6 @@ name: Jules Auto-merge
 on:
   push:
     branches:
-      - 'jules-narrator-*'
       - 'jules-observer-*'
       - 'jules-merger-*'
       - 'jules-dispatcher-*'
@@ -49,7 +48,7 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Discover open PR for pushed branch
@@ -73,10 +72,6 @@ jobs:
           mode=""
           layer=""
           case "${GITHUB_REF_NAME}" in
-            jules-narrator-*)
-              mode="layer"
-              layer="narrator"
-              ;;
             jules-observer-*)
               mode="layer"
               layer="observers"

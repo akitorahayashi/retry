@@ -18,17 +18,27 @@ on:
         description: 'Start from layer'
         type: choice
         options:
-          - narrator
           - observers
           - merger
           - dispatcher
           - planner
           - implementer
-        default: narrator
+        default: observers
       wait_minutes:
         description: 'Minutes to wait between layers (Jules async processing time)'
         type: number
         default: 30
+
+      tag:
+        description: 'Observer tag filter'
+        type: choice
+        options:
+          - all
+
+          - testing
+
+        default: all
+
       mock:
         description: 'Run in mock mode (creates branches/PRs without Jules API)'
         type: boolean
@@ -38,7 +48,7 @@ on:
       entry_point:
         description: 'Start from layer'
         type: string
-        default: narrator
+        default: observers
       wait_minutes:
         description: 'Minutes to wait between layers (Jules async processing time)'
         type: number
@@ -59,9 +69,9 @@ env:
   MOCK_MODE: ${{ github.event_name == 'workflow_call' && inputs.mock == true || github.event_name == 'workflow_dispatch' && github.event.inputs.mock == 'true' }}
   JULES_MOCK_TAG: ${{ format('mock_run_{0}', github.run_id) }}
   JLO_RUN_FLAGS: ${{ ((github.event_name == 'workflow_call' && inputs.mock == true) || (github.event_name == 'workflow_dispatch' && github.event.inputs.mock == 'true')) && '--mock' || '' }}
+  OBSERVER_TAG_FILTER: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.tag || 'all') || 'all' }}
   JLO_TARGET_BRANCH: 'main'
   JULES_WORKER_BRANCH: 'jules'
-
 
 
 
@@ -100,7 +110,6 @@ jobs:
   # ============================================================
   # Phase 0: Bootstrap runtime repository on worker branch
   # ============================================================
-
 
 
 
@@ -148,7 +157,7 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Sync worker branch
@@ -197,7 +206,6 @@ jobs:
             --pr-title "chore: bootstrap runtime workspace" \
             --pr-body "${pr_body}"
 
-
       - name: Wait for bootstrap sync PR merge
         id: wait_for_sync_pr
         if: ${{ fromJSON(steps.sync_pr.outputs.json || '{}').applied == true }}
@@ -237,171 +245,29 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Resolve optimizers plan
         id: check
         env:
           EVENT_NAME: ${{ github.event_name == 'workflow_call' && 'workflow_dispatch' || github.event_name }}
-          ENTRY_POINT: ${{ github.event_name == 'workflow_call' && (inputs.entry_point || 'narrator') || github.event_name == 'workflow_dispatch' && (github.event.inputs.entry_point || 'narrator') || '' }}
+          ENTRY_POINT: ${{ github.event_name == 'workflow_call' && (inputs.entry_point || 'observers') || github.event_name == 'workflow_dispatch' && (github.event.inputs.entry_point || 'observers') || '' }}
         run: |
           set -euo pipefail
           jlo workflow resolve optimizers-plan "$EVENT_NAME" --entry-point "$ENTRY_POINT"
 
 
   # ============================================================
-  # Phase 2: Run narrator
-  # ============================================================
-
-  
-  
-  request-narrator-run:
-    needs: ["resolve-optimizers-plan"]
-    if: |
-      !cancelled() &&
-      needs.resolve-optimizers-plan.result == 'success' &&
-            fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_narrator == true
-
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    outputs:
-      json: ${{ steps.run.outputs.json }}
-    env:
-      JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
-      GH_TOKEN: ${{ secrets.JLO_BOT_PAT }}
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          ref: 'jules'
-          fetch-depth: 0
-          token: ${{ secrets.JLO_BOT_PAT }}
-
-
-      - name: Configure Git
-        run: |
-          set -euo pipefail
-          git config user.name "aria"
-          git config user.email "aria67323@gmail.com"
-
-      - name: Install jlo
-        uses: asterismhq/setup-jlo@v1
-        with:
-          token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
-          submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
-      - name: Run narrator
-        id: run
-        run: |
-          set -euo pipefail
-          result=$(jlo run --json narrator ${{ env.JLO_RUN_FLAGS }})
-          echo "${result}"
-          echo "json=${result}" >> "$GITHUB_OUTPUT"
-
-  report-narrator-status:
-    needs: ["resolve-optimizers-plan", "request-narrator-run"]
-    if: |
-      !cancelled() &&
-      always() &&
-      needs.resolve-optimizers-plan.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    outputs:
-      json: ${{ steps.report.outputs.json }}
-    steps:
-      - name: Report Run narrator status
-        id: report
-        shell: bash
-        run: |
-          set -euo pipefail
-          requested_flag='${{ fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_narrator == true }}'
-          request_result='${{ needs.request-narrator-run.result }}'
-          request_count='${{ fromJSON(needs.request-narrator-run.outputs.json || '{}').number_of_api_requests_succeeded || 0 }}'
-          should_wait='${{ fromJSON(needs.request-narrator-run.outputs.json || '{}').should_wait == true }}'
-          if [ "${requested_flag}" = "true" ]; then
-            if [ "${request_result}" != "success" ]; then
-              echo "::error::Expected successful run request for 'narrator' but got '${request_result}'."
-              exit 1
-            fi
-            requested=false
-            if [ "${should_wait}" = "true" ]; then
-              requested=true
-            fi
-          else
-            if [ "${request_result}" != "skipped" ]; then
-              echo "::error::Expected skipped run request for 'narrator' but got '${request_result}'."
-              exit 1
-            fi
-            requested=false
-          fi
-
-          json="$(printf '{"requested":%s,"count":%s}\n' "${requested}" "${request_count}")"
-          echo "${json}"
-          echo "json=${json}" >> "$GITHUB_OUTPUT"
-  # ============================================================
-  # Phase 3: Wait after narrator
-  # ============================================================
-
-  wait-after-narrator:
-    needs: ['report-narrator-status']
-    if: |
-      !cancelled() &&
-      needs.report-narrator-status.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    outputs:
-      json: ${{ steps.wait.outputs.json }}
-    steps:
-      - name: Wait ${{ env.WAIT_MINUTES }} minutes for Jules async processing
-        id: wait
-        shell: bash
-        run: |
-          set -euo pipefail
-          requested='${{ fromJSON(needs.report-narrator-status.outputs.json || '{}').requested == true }}'
-          SLEEP_PID=""
-          on_cancel() {
-            echo "Cancellation detected. Exiting wait early."
-            if [ -n "$SLEEP_PID" ]; then
-              kill "$SLEEP_PID" 2>/dev/null || true
-              wait "$SLEEP_PID" 2>/dev/null || true
-            fi
-            exit 130
-          }
-          trap on_cancel INT TERM
-
-          if [ "$requested" != "true" ]; then
-            TOTAL_SECONDS=0
-            echo "Narrator wait not required; skipping wait."
-          elif [ "${{ env.MOCK_MODE }}" = "true" ]; then
-            TOTAL_SECONDS=15
-            echo "Mock mode enabled: overriding wait to 15 seconds."
-          else
-            TOTAL_SECONDS=$((${{ env.WAIT_MINUTES }} * 60))
-          fi
-
-          if [ "$TOTAL_SECONDS" -le 0 ]; then
-            echo "Wait skipped (TOTAL_SECONDS=$TOTAL_SECONDS)."
-            echo "json={}" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-            echo "Waiting ${TOTAL_SECONDS} seconds for Jules to process narrator..."
-          # Foreground sleep delays trap handling until sleep returns in bash.
-          # Use background sleep + wait so cancellation signals are processed immediately.
-          sleep "$TOTAL_SECONDS" &
-          SLEEP_PID=$!
-          wait "$SLEEP_PID"
-          echo "Wait complete."
-          echo "json={}" >> "$GITHUB_OUTPUT"
-  # ============================================================
-  # Phase 4: Resolve and run observers (matrix)
+  # Phase 2: Resolve and run observers (matrix)
   # ============================================================
 
   resolve-observers-matrix:
-    needs: ["wait-after-narrator"]
+    needs: ["resolve-optimizers-plan"]
     if: |
       !cancelled() &&
 
-      needs.wait-after-narrator.result == 'success'
+      needs.resolve-optimizers-plan.result == 'success'
 
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -427,7 +293,7 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Resolve observers targets
@@ -435,20 +301,28 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${MOCK_MODE}" = "true" ]; then
-            jlo workflow resolve matrix --layer observers --mock
+            jlo workflow resolve matrix --layer observers --mock --tag "${OBSERVER_TAG_FILTER}"
           else
-            jlo workflow resolve matrix --layer observers
+            jlo workflow resolve matrix --layer observers --tag "${OBSERVER_TAG_FILTER}"
           fi
 
   
   
+  
+  
   request-observers-run:
     needs: ["resolve-optimizers-plan", "resolve-observers-matrix"]
+    
     if: |
       !cancelled() &&
+
+
+
       needs.resolve-optimizers-plan.result == 'success' &&
-      fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_observers == true &&
+
       needs.resolve-observers-matrix.result == 'success' &&
+
+      fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_observers == true &&
       fromJSON(needs.resolve-observers-matrix.outputs.json || '{"count":0,"skipped_count":0,"matrix":[]}').count > 0
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -483,7 +357,7 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Run observers (${{ matrix.target }})
@@ -502,119 +376,74 @@ jobs:
       needs.resolve-optimizers-plan.result == 'success' &&
       needs.resolve-observers-matrix.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 70
     outputs:
       json: ${{ steps.report.outputs.json }}
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: 'jules'
+          fetch-depth: 0
+          token: ${{ secrets.JLO_BOT_PAT }}
+
+
+      - name: Configure Git
+        run: |
+          set -euo pipefail
+          git config user.name "aria"
+          git config user.email "aria67323@gmail.com"
+
+      - name: Install jlo
+        uses: asterismhq/setup-jlo@v1
+        with:
+          token: ${{ secrets.JLO_RELEASE_PAT }}
+          version: '24.1.0'
+          submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
+
       - name: Report Run observers status
         id: report
-        shell: bash
+        env:
+          REQUESTED_FLAG: ${{ fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_observers == true }}
+          TARGET_COUNT: ${{ fromJSON(needs.resolve-observers-matrix.outputs.json || '{"count":0,"skipped_count":0,"matrix":[]}').count }}
+          REQUEST_RESULT: ${{ needs.request-observers-run.result }}
         run: |
           set -euo pipefail
-          requested_flag='${{ fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_observers == true }}'
-          target_count='${{ fromJSON(needs.resolve-observers-matrix.outputs.json || '{"count":0,"skipped_count":0,"matrix":[]}').count }}'
-          request_result='${{ needs.request-observers-run.result }}'
-          if [ "${requested_flag}" = "true" ]; then
-            if [ "${target_count}" = "0" ]; then
-              if [ "${request_result}" != "skipped" ]; then
-                echo "::error::Expected skipped run request for 'observers' with zero targets but got '${request_result}'."
-                exit 1
-              fi
-              requested=false
-            else
-              if [ "${request_result}" != "success" ]; then
-                echo "::error::Expected successful run request for 'observers' but got '${request_result}'."
-                exit 1
-              fi
-              requested=true
-            fi
-          else
-            if [ "${request_result}" != "skipped" ]; then
-              echo "::error::Expected skipped run request for 'observers' but got '${request_result}'."
-              exit 1
-            fi
-            requested=false
-          fi
+          jlo workflow resolve matrix-run-status \
+            --requested "${REQUESTED_FLAG}" \
+            --result "${REQUEST_RESULT}" \
+            --target-count "${TARGET_COUNT}"
 
-          count=0
-          if [ "${requested}" = "true" ]; then
-            count="${target_count}"
-          fi
-
-          json="$(printf '{"requested":%s,"count":%s}\n' "${requested}" "${count}")"
-          echo "${json}"
-          echo "json=${json}" >> "$GITHUB_OUTPUT"
-  # ============================================================
-  # Phase 5: Wait after observers
-  # ============================================================
-
-  wait-after-observers:
-    needs: ['report-observers-status']
-    if: |
-      !cancelled() &&
-      needs.report-observers-status.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    outputs:
-      json: ${{ steps.wait.outputs.json }}
-    steps:
       - name: Wait ${{ env.WAIT_MINUTES }} minutes for Jules async processing
-        id: wait
-        shell: bash
-        run: |
-          set -euo pipefail
-          requested='${{ fromJSON(needs.report-observers-status.outputs.json || '{}').requested == true }}'
-          SLEEP_PID=""
-          on_cancel() {
-            echo "Cancellation detected. Exiting wait early."
-            if [ -n "$SLEEP_PID" ]; then
-              kill "$SLEEP_PID" 2>/dev/null || true
-              wait "$SLEEP_PID" 2>/dev/null || true
-            fi
-            exit 130
-          }
-          trap on_cancel INT TERM
+        if: ${{ always() && steps.report.outcome == 'success' }}
+        uses: akitorahayashi/wait@v1
+        with:
+          enabled: ${{ fromJSON(steps.report.outputs.json || '{}').requested == true }}
+          minutes: ${{ env.WAIT_MINUTES }}
+          seconds: ${{ env.MOCK_MODE == 'true' && '15' || '' }}
+          label: 'Jules async processing for observers'
 
-          if [ "$requested" != "true" ]; then
-            TOTAL_SECONDS=0
-            echo "Observers wait not required; skipping wait."
-          elif [ "${{ env.MOCK_MODE }}" = "true" ]; then
-            TOTAL_SECONDS=15
-            echo "Mock mode enabled: overriding wait to 15 seconds."
-          else
-            TOTAL_SECONDS=$((${{ env.WAIT_MINUTES }} * 60))
-          fi
-
-          if [ "$TOTAL_SECONDS" -le 0 ]; then
-            echo "Wait skipped (TOTAL_SECONDS=$TOTAL_SECONDS)."
-            echo "json={}" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-            echo "Waiting ${TOTAL_SECONDS} seconds for Jules to process observers..."
-          # Foreground sleep delays trap handling until sleep returns in bash.
-          # Use background sleep + wait so cancellation signals are processed immediately.
-          sleep "$TOTAL_SECONDS" &
-          SLEEP_PID=$!
-          wait "$SLEEP_PID"
-          echo "Wait complete."
-          echo "json={}" >> "$GITHUB_OUTPUT"
   # ============================================================
-  # Phase 6: Run merger
+  # Phase 3: Run merger and wait
   # ============================================================
 
   
   
-  request-merger-run:
-    needs: ["resolve-optimizers-plan", "wait-after-observers"]
+  
+  run-merger:
+    needs: ["resolve-optimizers-plan", "report-observers-status"]
+    
     if: |
       !cancelled() &&
+
+
       needs.resolve-optimizers-plan.result == 'success' &&
-            fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_merger == true
+
+      needs.report-observers-status.result == 'success'
 
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 100
     outputs:
-      json: ${{ steps.run.outputs.json }}
+      json: ${{ steps.report.outputs.json }}
     env:
       JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
       GH_TOKEN: ${{ secrets.JLO_BOT_PAT }}
@@ -636,127 +465,62 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
       - name: Run merger
         id: run
+        if: ${{ fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_merger == true }}
+        continue-on-error: true
         run: |
           set -euo pipefail
           result=$(jlo run --json merger ${{ env.JLO_RUN_FLAGS }})
           echo "${result}"
           echo "json=${result}" >> "$GITHUB_OUTPUT"
-
-  report-merger-status:
-    needs: ["resolve-optimizers-plan", "wait-after-observers", "request-merger-run"]
-    if: |
-      !cancelled() &&
-      always() &&
-      needs.resolve-optimizers-plan.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    outputs:
-      json: ${{ steps.report.outputs.json }}
-    steps:
       - name: Report Run merger status
         id: report
-        shell: bash
+        if: ${{ always() }}
+        env:
+          REQUESTED_FLAG: ${{ fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_merger == true }}
+          REQUEST_RESULT: ${{ steps.run.outcome }}
+          RUN_JSON: ${{ steps.run.outputs.json || '{}' }}
         run: |
           set -euo pipefail
-          requested_flag='${{ fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_merger == true }}'
-          request_result='${{ needs.request-merger-run.result }}'
-          request_count='${{ fromJSON(needs.request-merger-run.outputs.json || '{}').number_of_api_requests_succeeded || 0 }}'
-          should_wait='${{ fromJSON(needs.request-merger-run.outputs.json || '{}').should_wait == true }}'
-          if [ "${requested_flag}" = "true" ]; then
-            if [ "${request_result}" != "success" ]; then
-              echo "::error::Expected successful run request for 'merger' but got '${request_result}'."
-              exit 1
-            fi
-            requested=false
-            if [ "${should_wait}" = "true" ]; then
-              requested=true
-            fi
-          else
-            if [ "${request_result}" != "skipped" ]; then
-              echo "::error::Expected skipped run request for 'merger' but got '${request_result}'."
-              exit 1
-            fi
-            requested=false
-          fi
+          jlo workflow resolve run-status \
+            --requested "${REQUESTED_FLAG}" \
+            --result "${REQUEST_RESULT}" \
+            --run-json "${RUN_JSON}"
 
-          json="$(printf '{"requested":%s,"count":%s}\n' "${requested}" "${request_count}")"
-          echo "${json}"
-          echo "json=${json}" >> "$GITHUB_OUTPUT"
-  # ============================================================
-  # Phase 7: Wait after merger
-  # ============================================================
-
-  wait-after-merger:
-    needs: ['report-merger-status']
-    if: |
-      !cancelled() &&
-      needs.report-merger-status.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    outputs:
-      json: ${{ steps.wait.outputs.json }}
-    steps:
       - name: Wait ${{ env.WAIT_MINUTES }} minutes for Jules async processing
-        id: wait
-        shell: bash
-        run: |
-          set -euo pipefail
-          requested='${{ fromJSON(needs.report-merger-status.outputs.json || '{}').requested == true }}'
-          SLEEP_PID=""
-          on_cancel() {
-            echo "Cancellation detected. Exiting wait early."
-            if [ -n "$SLEEP_PID" ]; then
-              kill "$SLEEP_PID" 2>/dev/null || true
-              wait "$SLEEP_PID" 2>/dev/null || true
-            fi
-            exit 130
-          }
-          trap on_cancel INT TERM
+        if: ${{ always() && steps.report.outcome == 'success' }}
+        uses: akitorahayashi/wait@v1
+        with:
+          enabled: ${{ fromJSON(steps.report.outputs.json || '{}').requested == true }}
+          minutes: ${{ env.WAIT_MINUTES }}
+          seconds: ${{ env.MOCK_MODE == 'true' && '15' || '' }}
+          label: 'Jules async processing for merger'
 
-          if [ "$requested" != "true" ]; then
-            TOTAL_SECONDS=0
-            echo "Merger wait not required; skipping wait."
-          elif [ "${{ env.MOCK_MODE }}" = "true" ]; then
-            TOTAL_SECONDS=15
-            echo "Mock mode enabled: overriding wait to 15 seconds."
-          else
-            TOTAL_SECONDS=$((${{ env.WAIT_MINUTES }} * 60))
-          fi
-
-          if [ "$TOTAL_SECONDS" -le 0 ]; then
-            echo "Wait skipped (TOTAL_SECONDS=$TOTAL_SECONDS)."
-            echo "json={}" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-            echo "Waiting ${TOTAL_SECONDS} seconds for Jules to process merger..."
-          # Foreground sleep delays trap handling until sleep returns in bash.
-          # Use background sleep + wait so cancellation signals are processed immediately.
-          sleep "$TOTAL_SECONDS" &
-          SLEEP_PID=$!
-          wait "$SLEEP_PID"
-          echo "Wait complete."
-          echo "json={}" >> "$GITHUB_OUTPUT"
   # ============================================================
-  # Phase 8: Run dispatcher
+  # Phase 4: Run dispatcher and wait
   # ============================================================
 
   
   
-  request-dispatcher-run:
-    needs: ["resolve-optimizers-plan", "wait-after-merger"]
+  
+  run-dispatcher:
+    needs: ["resolve-optimizers-plan", "run-merger"]
+    
     if: |
       !cancelled() &&
+
+
       needs.resolve-optimizers-plan.result == 'success' &&
-            fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_dispatcher == true
+
+      needs.run-merger.result == 'success'
 
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 100
     outputs:
-      json: ${{ steps.run.outputs.json }}
+      json: ${{ steps.report.outputs.json }}
     env:
       JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
       GH_TOKEN: ${{ secrets.JLO_BOT_PAT }}
@@ -778,119 +542,49 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
       - name: Run dispatcher
         id: run
+        if: ${{ fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_dispatcher == true }}
+        continue-on-error: true
         run: |
           set -euo pipefail
           result=$(jlo run --json dispatcher ${{ env.JLO_RUN_FLAGS }})
           echo "${result}"
           echo "json=${result}" >> "$GITHUB_OUTPUT"
-
-  report-dispatcher-status:
-    needs: ["resolve-optimizers-plan", "wait-after-merger", "request-dispatcher-run"]
-    if: |
-      !cancelled() &&
-      always() &&
-      needs.resolve-optimizers-plan.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    outputs:
-      json: ${{ steps.report.outputs.json }}
-    steps:
       - name: Report Run dispatcher status
         id: report
-        shell: bash
+        if: ${{ always() }}
+        env:
+          REQUESTED_FLAG: ${{ fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_dispatcher == true }}
+          REQUEST_RESULT: ${{ steps.run.outcome }}
+          RUN_JSON: ${{ steps.run.outputs.json || '{}' }}
         run: |
           set -euo pipefail
-          requested_flag='${{ fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_dispatcher == true }}'
-          request_result='${{ needs.request-dispatcher-run.result }}'
-          request_count='${{ fromJSON(needs.request-dispatcher-run.outputs.json || '{}').number_of_api_requests_succeeded || 0 }}'
-          should_wait='${{ fromJSON(needs.request-dispatcher-run.outputs.json || '{}').should_wait == true }}'
-          if [ "${requested_flag}" = "true" ]; then
-            if [ "${request_result}" != "success" ]; then
-              echo "::error::Expected successful run request for 'dispatcher' but got '${request_result}'."
-              exit 1
-            fi
-            requested=false
-            if [ "${should_wait}" = "true" ]; then
-              requested=true
-            fi
-          else
-            if [ "${request_result}" != "skipped" ]; then
-              echo "::error::Expected skipped run request for 'dispatcher' but got '${request_result}'."
-              exit 1
-            fi
-            requested=false
-          fi
+          jlo workflow resolve run-status \
+            --requested "${REQUESTED_FLAG}" \
+            --result "${REQUEST_RESULT}" \
+            --run-json "${RUN_JSON}"
 
-          json="$(printf '{"requested":%s,"count":%s}\n' "${requested}" "${request_count}")"
-          echo "${json}"
-          echo "json=${json}" >> "$GITHUB_OUTPUT"
-  # ============================================================
-  # Phase 9: Wait after dispatcher
-  # ============================================================
-
-  wait-after-dispatcher:
-    needs: ['report-dispatcher-status']
-    if: |
-      !cancelled() &&
-      needs.report-dispatcher-status.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    outputs:
-      json: ${{ steps.wait.outputs.json }}
-    steps:
       - name: Wait ${{ env.WAIT_MINUTES }} minutes for Jules async processing
-        id: wait
-        shell: bash
-        run: |
-          set -euo pipefail
-          requested='${{ fromJSON(needs.report-dispatcher-status.outputs.json || '{}').requested == true }}'
-          SLEEP_PID=""
-          on_cancel() {
-            echo "Cancellation detected. Exiting wait early."
-            if [ -n "$SLEEP_PID" ]; then
-              kill "$SLEEP_PID" 2>/dev/null || true
-              wait "$SLEEP_PID" 2>/dev/null || true
-            fi
-            exit 130
-          }
-          trap on_cancel INT TERM
+        if: ${{ always() && steps.report.outcome == 'success' }}
+        uses: akitorahayashi/wait@v1
+        with:
+          enabled: ${{ fromJSON(steps.report.outputs.json || '{}').requested == true }}
+          minutes: ${{ env.WAIT_MINUTES }}
+          seconds: ${{ env.MOCK_MODE == 'true' && '15' || '' }}
+          label: 'Jules async processing for dispatcher'
 
-          if [ "$requested" != "true" ]; then
-            TOTAL_SECONDS=0
-            echo "Dispatcher wait not required; skipping wait."
-          elif [ "${{ env.MOCK_MODE }}" = "true" ]; then
-            TOTAL_SECONDS=15
-            echo "Mock mode enabled: overriding wait to 15 seconds."
-          else
-            TOTAL_SECONDS=$((${{ env.WAIT_MINUTES }} * 60))
-          fi
-
-          if [ "$TOTAL_SECONDS" -le 0 ]; then
-            echo "Wait skipped (TOTAL_SECONDS=$TOTAL_SECONDS)."
-            echo "json={}" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-            echo "Waiting ${TOTAL_SECONDS} seconds for Jules to process dispatcher..."
-          # Foreground sleep delays trap handling until sleep returns in bash.
-          # Use background sleep + wait so cancellation signals are processed immediately.
-          sleep "$TOTAL_SECONDS" &
-          SLEEP_PID=$!
-          wait "$SLEEP_PID"
-          echo "Wait complete."
-          echo "json={}" >> "$GITHUB_OUTPUT"
   # ============================================================
-  # Phase 10: Publish requirements lane to implementer issues
+  # Phase 5: Publish requirements lane to implementer issues
   # ============================================================
 
   publish-implementer-requirements:
-    needs: ["wait-after-dispatcher"]
+    needs: ["run-dispatcher"]
     if: |
       !cancelled() &&
-      needs.wait-after-dispatcher.result == 'success'
+      needs.run-dispatcher.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -913,7 +607,7 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Publish implementer issues (requirements)
@@ -938,7 +632,6 @@ jobs:
             --commit-message "jules: publish implementer requirements lane" \
             --pr-title "chore: publish implementer requirements lane" \
             --pr-body "Automated publication cleanup for requirements lane implementer issues."
-
 
       - name: Wait for implementer issue publication sync PR merge
         id: wait_for_sync_pr
@@ -970,15 +663,15 @@ jobs:
             fi
           done
   # ============================================================
-  # Phase 11: Resolve and run planner (matrix)
+  # Phase 6: Resolve and run planner (matrix)
   # ============================================================
 
   resolve-planner-matrix:
-    needs: ["wait-after-dispatcher"]
+    needs: ["run-dispatcher"]
     if: |
       !cancelled() &&
 
-      needs.wait-after-dispatcher.result == 'success'
+      needs.run-dispatcher.result == 'success'
 
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -1004,7 +697,7 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Resolve planner targets
@@ -1019,13 +712,21 @@ jobs:
 
   
   
+  
+  
   request-planner-run:
     needs: ["resolve-optimizers-plan", "resolve-planner-matrix"]
+    
     if: |
       !cancelled() &&
+
+
+
       needs.resolve-optimizers-plan.result == 'success' &&
-      fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_planner == true &&
+
       needs.resolve-planner-matrix.result == 'success' &&
+
+      fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_planner == true &&
       fromJSON(needs.resolve-planner-matrix.outputs.json || '{"count":0,"skipped_count":0,"matrix":[]}').count > 0
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -1060,7 +761,7 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Run planner (${{ matrix.target }})
@@ -1079,113 +780,61 @@ jobs:
       needs.resolve-optimizers-plan.result == 'success' &&
       needs.resolve-planner-matrix.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 70
     outputs:
       json: ${{ steps.report.outputs.json }}
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: 'jules'
+          fetch-depth: 0
+          token: ${{ secrets.JLO_BOT_PAT }}
+
+
+      - name: Configure Git
+        run: |
+          set -euo pipefail
+          git config user.name "aria"
+          git config user.email "aria67323@gmail.com"
+
+      - name: Install jlo
+        uses: asterismhq/setup-jlo@v1
+        with:
+          token: ${{ secrets.JLO_RELEASE_PAT }}
+          version: '24.1.0'
+          submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
+
       - name: Report Run planner status
         id: report
-        shell: bash
+        env:
+          REQUESTED_FLAG: ${{ fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_planner == true }}
+          TARGET_COUNT: ${{ fromJSON(needs.resolve-planner-matrix.outputs.json || '{"count":0,"skipped_count":0,"matrix":[]}').count }}
+          REQUEST_RESULT: ${{ needs.request-planner-run.result }}
         run: |
           set -euo pipefail
-          requested_flag='${{ fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_planner == true }}'
-          target_count='${{ fromJSON(needs.resolve-planner-matrix.outputs.json || '{"count":0,"skipped_count":0,"matrix":[]}').count }}'
-          request_result='${{ needs.request-planner-run.result }}'
-          if [ "${requested_flag}" = "true" ]; then
-            if [ "${target_count}" = "0" ]; then
-              if [ "${request_result}" != "skipped" ]; then
-                echo "::error::Expected skipped run request for 'planner' with zero targets but got '${request_result}'."
-                exit 1
-              fi
-              requested=false
-            else
-              if [ "${request_result}" != "success" ]; then
-                echo "::error::Expected successful run request for 'planner' but got '${request_result}'."
-                exit 1
-              fi
-              requested=true
-            fi
-          else
-            if [ "${request_result}" != "skipped" ]; then
-              echo "::error::Expected skipped run request for 'planner' but got '${request_result}'."
-              exit 1
-            fi
-            requested=false
-          fi
+          jlo workflow resolve matrix-run-status \
+            --requested "${REQUESTED_FLAG}" \
+            --result "${REQUEST_RESULT}" \
+            --target-count "${TARGET_COUNT}"
 
-          count=0
-          if [ "${requested}" = "true" ]; then
-            count="${target_count}"
-          fi
-
-          json="$(printf '{"requested":%s,"count":%s}\n' "${requested}" "${count}")"
-          echo "${json}"
-          echo "json=${json}" >> "$GITHUB_OUTPUT"
-  # ============================================================
-  # Phase 12: Wait for planner PRs
-  # ============================================================
-  # Matrix boundary is reported in the macro so planner skip/zero-target
-  # behavior does not leak into downstream implementer gating.
-
-  wait-after-planner:
-    needs: ['report-planner-status']
-    if: |
-      !cancelled() &&
-      needs.report-planner-status.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    outputs:
-      json: ${{ steps.wait.outputs.json }}
-    steps:
       - name: Wait ${{ env.WAIT_MINUTES }} minutes for Jules async processing
-        id: wait
-        shell: bash
-        run: |
-          set -euo pipefail
-          requested='${{ fromJSON(needs.report-planner-status.outputs.json || '{}').requested == true }}'
-          SLEEP_PID=""
-          on_cancel() {
-            echo "Cancellation detected. Exiting wait early."
-            if [ -n "$SLEEP_PID" ]; then
-              kill "$SLEEP_PID" 2>/dev/null || true
-              wait "$SLEEP_PID" 2>/dev/null || true
-            fi
-            exit 130
-          }
-          trap on_cancel INT TERM
+        if: ${{ always() && steps.report.outcome == 'success' }}
+        uses: akitorahayashi/wait@v1
+        with:
+          enabled: ${{ fromJSON(steps.report.outputs.json || '{}').requested == true }}
+          minutes: ${{ env.WAIT_MINUTES }}
+          seconds: ${{ env.MOCK_MODE == 'true' && '15' || '' }}
+          label: 'Jules async processing for planner'
 
-          if [ "$requested" != "true" ]; then
-            TOTAL_SECONDS=0
-            echo "Planner wait not required; skipping wait."
-          elif [ "${{ env.MOCK_MODE }}" = "true" ]; then
-            TOTAL_SECONDS=15
-            echo "Mock mode enabled: overriding wait to 15 seconds."
-          else
-            TOTAL_SECONDS=$((${{ env.WAIT_MINUTES }} * 60))
-          fi
-
-          if [ "$TOTAL_SECONDS" -le 0 ]; then
-            echo "Wait skipped (TOTAL_SECONDS=$TOTAL_SECONDS)."
-            echo "json={}" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-            echo "Waiting ${TOTAL_SECONDS} seconds for Jules to process planner..."
-          # Foreground sleep delays trap handling until sleep returns in bash.
-          # Use background sleep + wait so cancellation signals are processed immediately.
-          sleep "$TOTAL_SECONDS" &
-          SLEEP_PID=$!
-          wait "$SLEEP_PID"
-          echo "Wait complete."
-          echo "json={}" >> "$GITHUB_OUTPUT"
   # ============================================================
-  # Phase 13: Publish plans lane to implementer issues
+  # Phase 7: Publish plans lane to implementer issues
   # ============================================================
 
   publish-implementer-plans:
-    needs: ["wait-after-planner"]
+    needs: ["report-planner-status"]
     if: |
       !cancelled() &&
-      needs.wait-after-planner.result == 'success'
+      needs.report-planner-status.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -1208,7 +857,7 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Publish implementer issues (plans)
@@ -1233,7 +882,6 @@ jobs:
             --commit-message "jules: publish implementer plans lane" \
             --pr-title "chore: publish implementer plans lane" \
             --pr-body "Automated publication cleanup for plans lane implementer issues."
-
 
       - name: Wait for implementer issue publication sync PR merge
         id: wait_for_sync_pr
@@ -1265,7 +913,7 @@ jobs:
             fi
           done
   # ============================================================
-  # Phase 14: Resolve and run implementer (matrix)
+  # Phase 8: Resolve and run implementer (matrix)
   # ============================================================
 
   resolve-implementer-matrix:
@@ -1301,7 +949,7 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Resolve implementer targets
@@ -1316,13 +964,21 @@ jobs:
 
   
   
+  
+  
   request-implementer-run:
     needs: ["resolve-optimizers-plan", "resolve-implementer-matrix"]
+    
     if: |
       !cancelled() &&
+
+
+
       needs.resolve-optimizers-plan.result == 'success' &&
-      fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_implementer == true &&
+
       needs.resolve-implementer-matrix.result == 'success' &&
+
+      fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_implementer == true &&
       fromJSON(needs.resolve-implementer-matrix.outputs.json || '{"count":0,"skipped_count":0,"matrix":[]}').count > 0
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -1357,7 +1013,7 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Run implementer (${{ matrix.target }})
@@ -1380,51 +1036,46 @@ jobs:
     outputs:
       json: ${{ steps.report.outputs.json }}
     steps:
-      - name: Report Run implementer status
-        id: report
-        shell: bash
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: 'main'
+          fetch-depth: 0
+          token: ${{ secrets.JLO_BOT_PAT }}
+
+
+      - name: Configure Git
         run: |
           set -euo pipefail
-          requested_flag='${{ fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_implementer == true }}'
-          target_count='${{ fromJSON(needs.resolve-implementer-matrix.outputs.json || '{"count":0,"skipped_count":0,"matrix":[]}').count }}'
-          request_result='${{ needs.request-implementer-run.result }}'
-          if [ "${requested_flag}" = "true" ]; then
-            if [ "${target_count}" = "0" ]; then
-              if [ "${request_result}" != "skipped" ]; then
-                echo "::error::Expected skipped run request for 'implementer' with zero targets but got '${request_result}'."
-                exit 1
-              fi
-              requested=false
-            else
-              if [ "${request_result}" != "success" ]; then
-                echo "::error::Expected successful run request for 'implementer' but got '${request_result}'."
-                exit 1
-              fi
-              requested=true
-            fi
-          else
-            if [ "${request_result}" != "skipped" ]; then
-              echo "::error::Expected skipped run request for 'implementer' but got '${request_result}'."
-              exit 1
-            fi
-            requested=false
-          fi
+          git config user.name "aria"
+          git config user.email "aria67323@gmail.com"
 
-          count=0
-          if [ "${requested}" = "true" ]; then
-            count="${target_count}"
-          fi
+      - name: Install jlo
+        uses: asterismhq/setup-jlo@v1
+        with:
+          token: ${{ secrets.JLO_RELEASE_PAT }}
+          version: '24.1.0'
+          submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
-          json="$(printf '{"requested":%s,"count":%s}\n' "${requested}" "${count}")"
-          echo "${json}"
-          echo "json=${json}" >> "$GITHUB_OUTPUT"
+      - name: Report Run implementer status
+        id: report
+        env:
+          REQUESTED_FLAG: ${{ fromJSON(needs.resolve-optimizers-plan.outputs.json || '{}').run_implementer == true }}
+          TARGET_COUNT: ${{ fromJSON(needs.resolve-implementer-matrix.outputs.json || '{"count":0,"skipped_count":0,"matrix":[]}').count }}
+          REQUEST_RESULT: ${{ needs.request-implementer-run.result }}
+        run: |
+          set -euo pipefail
+          jlo workflow resolve matrix-run-status \
+            --requested "${REQUESTED_FLAG}" \
+            --result "${REQUEST_RESULT}" \
+            --target-count "${TARGET_COUNT}"
+
   # ============================================================
-  # Phase 15: Cleanup mock artifacts
+  # Phase 9: Cleanup mock artifacts
   # ============================================================
 
 
   cleanup-mock-artifacts:
-    needs: ["wait-after-planner", "report-implementer-status"]
+    needs: ["report-planner-status", "report-implementer-status"]
     if: |
       !cancelled() &&
       always() &&
@@ -1467,7 +1118,7 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Cleanup mock artifacts for this run
