@@ -8,6 +8,18 @@ describe('shouldRetryFailure', () => {
         retryOn: 'any',
       }),
     ).toBe(false)
+
+    expect(
+      shouldRetryFailure('success', 0, {
+        retryOn: 'error',
+      }),
+    ).toBe(false)
+
+    expect(
+      shouldRetryFailure('success', 0, {
+        retryOn: 'timeout',
+      }),
+    ).toBe(false)
   })
 
   it('retries error and timeout when policy is any', () => {
