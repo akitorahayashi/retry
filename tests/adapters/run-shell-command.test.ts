@@ -52,6 +52,15 @@ describe('runShellCommand', () => {
     )
   })
 
+  it('throws an error if spawn itself throws', () => {
+    const spawnError = new Error('spawn failed')
+    vi.mocked(spawn).mockImplementationOnce(() => {
+      throw spawnError
+    })
+
+    expect(() => runShellCommand('echo test', 'bash')).toThrow(spawnError)
+  })
+
   it('rejects the completion promise if the child process emits an error', async () => {
     // biome-ignore lint/suspicious/noExplicitAny: mocking child process return
     const emitter = new EventEmitter() as any
