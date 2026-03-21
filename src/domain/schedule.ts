@@ -1,15 +1,15 @@
 export interface RetrySchedule {
-  defaultDelaySeconds: number
+  retryDelaySeconds: number
   retryDelayScheduleSeconds: readonly number[]
 }
 
 export function resolveRetryDelaySeconds(
-  retryIndex: number,
+  attempt: number,
   schedule: RetrySchedule,
 ): number {
-  const scheduleValue = schedule.retryDelayScheduleSeconds[retryIndex - 1]
+  const scheduleValue = schedule.retryDelayScheduleSeconds[attempt - 1]
   if (typeof scheduleValue === 'number') {
     return scheduleValue
   }
-  return schedule.defaultDelaySeconds
+  return schedule.retryDelaySeconds
 }

@@ -25840,6 +25840,26 @@ function readExitCodeSet(name) {
 
 /***/ }),
 
+/***/ 3715:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.delay = delay;
+function delay(milliseconds) {
+    let timeoutId;
+    const promise = new Promise((resolve) => {
+        timeoutId = setTimeout(() => {
+            resolve();
+        }, milliseconds);
+    });
+    return { promise, cancel: () => clearTimeout(timeoutId) };
+}
+
+
+/***/ }),
+
 /***/ 8758:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -25999,6 +26019,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.executeRetry = executeRetry;
 const core = __importStar(__nccwpck_require__(7484));
 const run_shell_command_1 = __nccwpck_require__(8758);
+const delay_1 = __nccwpck_require__(3715);
 const sleep_1 = __nccwpck_require__(5991);
 const terminate_process_tree_1 = __nccwpck_require__(5680);
 const policy_1 = __nccwpck_require__(4596);
@@ -26006,6 +26027,7 @@ const result_1 = __nccwpck_require__(635);
 const schedule_1 = __nccwpck_require__(5579);
 const runtimeDependencies = {
     runCommand: run_shell_command_1.runShellCommand,
+    delay: delay_1.delay,
     sleep: sleep_1.sleep,
     terminateProcessTree: terminate_process_tree_1.terminateProcessTree,
 };
@@ -26015,7 +26037,7 @@ async function executeRetry(params, dependencies = runtimeDependencies) {
         retryOnExitCodes: params.retryOnExitCodes,
     };
     const schedule = {
-        defaultDelaySeconds: params.retryDelaySeconds,
+        retryDelaySeconds: params.retryDelaySeconds,
         retryDelayScheduleSeconds: params.retryDelayScheduleSeconds,
     };
     let finalAttempt;
@@ -26032,8 +26054,7 @@ async function executeRetry(params, dependencies = runtimeDependencies) {
             core.info('Failure is outside retry policy. Stopping without additional retries.');
             return (0, result_1.toFinalResult)(finalAttempt);
         }
-        const retryIndex = attempt;
-        const delaySeconds = (0, schedule_1.resolveRetryDelaySeconds)(retryIndex, schedule);
+        const delaySeconds = (0, schedule_1.resolveRetryDelaySeconds)(attempt, schedule);
         core.warning(`Attempt ${attempt} failed with ${finalAttempt.outcome} (exit code: ${formatExitCode(finalAttempt.exitCode)}). Retrying.`);
         if (delaySeconds > 0) {
             core.info(`Waiting ${delaySeconds}s before next attempt.`);
@@ -26048,8 +26069,7 @@ async function executeRetry(params, dependencies = runtimeDependencies) {
 async function runAttempt(command, attempt, dependencies) {
     core.info(`Running command: ${command.command}`);
     let running;
-    let timedOut = false;
-    let timeoutTimer;
+    let timeoutCancel;
     const onSignal = async (signal) => {
         if (running?.isRunning()) {
             core.warning(`Received ${signal}. Terminating active command process tree.`);
@@ -26078,39 +26098,45 @@ async function runAttempt(command, attempt, dependencies) {
     process.once('SIGINT', onSigint);
     try {
         running = dependencies.runCommand(command.command, command.shell);
+        const completionPromise = running.completion.then((completion) => ({
+            type: 'completion',
+            completion,
+        }));
+        let racePromise = completionPromise;
         if (command.timeoutSeconds !== undefined) {
-            const currentRunning = running;
-            timeoutTimer = setTimeout(() => {
-                timedOut = true;
-                core.warning(`Attempt ${attempt} timed out after ${command.timeoutSeconds}s.`);
-                dependencies
-                    .terminateProcessTree(currentRunning.pid, command.terminationGraceSeconds)
-                    .catch((error) => {
-                    const message = error instanceof Error ? error.message : String(error);
-                    core.error(`Failed timeout termination pid=${currentRunning.pid} grace=${command.terminationGraceSeconds}s: ${message}`);
-                });
-            }, command.timeoutSeconds * 1000);
+            const timeout = dependencies.delay(command.timeoutSeconds * 1000);
+            timeoutCancel = timeout.cancel;
+            const timeoutPromise = timeout.promise.then(() => ({
+                type: 'timeout',
+            }));
+            racePromise = Promise.race([completionPromise, timeoutPromise]);
         }
-        const completion = await running.completion;
-        if (timeoutTimer) {
-            clearTimeout(timeoutTimer);
+        const result = await racePromise;
+        if (result.type === 'timeout') {
+            core.warning(`Attempt ${attempt} timed out after ${command.timeoutSeconds}s.`);
+            try {
+                await dependencies.terminateProcessTree(running.pid, command.terminationGraceSeconds);
+            }
+            catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                core.error(`Failed timeout termination pid=${running.pid} grace=${command.terminationGraceSeconds}s: ${message}`);
+            }
+            const completion = await running.completion;
+            return {
+                attempt,
+                outcome: 'timeout',
+                exitCode: completion.exitCode,
+            };
         }
-        const outcome = timedOut
-            ? 'timeout'
-            : completion.exitCode === 0
-                ? 'success'
-                : 'error';
-        core.info(`Attempt ${attempt} completed with outcome=${outcome} exitCode=${formatExitCode(completion.exitCode)}`);
+        const outcome = result.completion.exitCode === 0 ? 'success' : 'error';
+        core.info(`Attempt ${attempt} completed with outcome=${outcome} exitCode=${formatExitCode(result.completion.exitCode)}`);
         return {
             attempt,
             outcome,
-            exitCode: completion.exitCode,
+            exitCode: result.completion.exitCode,
         };
     }
     catch (error) {
-        if (timeoutTimer) {
-            clearTimeout(timeoutTimer);
-        }
         const message = error instanceof Error ? error.message : String(error);
         core.error(`Attempt ${attempt} failed to execute command: ${message}`);
         return {
@@ -26120,6 +26146,9 @@ async function runAttempt(command, attempt, dependencies) {
         };
     }
     finally {
+        if (timeoutCancel) {
+            timeoutCancel();
+        }
         process.off('SIGTERM', onSigterm);
         process.off('SIGINT', onSigint);
     }
@@ -26194,12 +26223,12 @@ function toFinalResult(result) {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.resolveRetryDelaySeconds = resolveRetryDelaySeconds;
-function resolveRetryDelaySeconds(retryIndex, schedule) {
-    const scheduleValue = schedule.retryDelayScheduleSeconds[retryIndex - 1];
+function resolveRetryDelaySeconds(attempt, schedule) {
+    const scheduleValue = schedule.retryDelayScheduleSeconds[attempt - 1];
     if (typeof scheduleValue === 'number') {
         return scheduleValue;
     }
-    return schedule.defaultDelaySeconds;
+    return schedule.retryDelaySeconds;
 }
 
 
