@@ -32,17 +32,27 @@ export function registerCommandTerminationOnSignal(
   }
 
   const onSigterm = () => {
-    onSignal('SIGTERM').catch((error: unknown) => {
-      const message = error instanceof Error ? error.message : String(error)
-      core.error(`SIGTERM handler failed: ${message}`)
-    })
+    onSignal('SIGTERM')
+      .then(() => {
+        process.exit(0)
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error)
+        core.error(`SIGTERM handler failed: ${message}`)
+        process.exit(1)
+      })
   }
 
   const onSigint = () => {
-    onSignal('SIGINT').catch((error: unknown) => {
-      const message = error instanceof Error ? error.message : String(error)
-      core.error(`SIGINT handler failed: ${message}`)
-    })
+    onSignal('SIGINT')
+      .then(() => {
+        process.exit(0)
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error)
+        core.error(`SIGINT handler failed: ${message}`)
+        process.exit(1)
+      })
   }
 
   process.once('SIGTERM', onSigterm)

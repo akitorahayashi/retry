@@ -30,6 +30,12 @@ export async function executeRetry(
   params: ExecuteRetryParams,
   dependencies: ExecuteRetryDependencies = executeRetryDependencies,
 ): Promise<FinalResult> {
+  if (!Number.isInteger(params.maxAttempts) || params.maxAttempts <= 0) {
+    throw new Error(
+      `ExecuteRetryParams.maxAttempts must be a positive integer, but received: ${params.maxAttempts}`,
+    )
+  }
+
   const policy: RetryPolicy = {
     retryOn: params.retryOn,
     retryOnExitCodes: params.retryOnExitCodes,

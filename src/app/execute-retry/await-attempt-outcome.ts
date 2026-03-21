@@ -67,11 +67,33 @@ export async function awaitAttemptOutcome(
       )
     }
 
-    const completion = await runningCommand.completion
+    const terminationTimeout = dependencies.delay(5000)
 
-    return {
-      outcome: 'timeout',
-      exitCode: completion.exitCode,
+    try {
+      const finalCompletion = await Promise.race([
+        runningCommand.completion.then((res) => ({
+          type: 'completion' as const,
+          ...res,
+        })),
+        terminationTimeout.promise.then(() => ({ type: 'timeout' as const })),
+      ])
+
+      if (finalCompletion.type === 'timeout') {
+        core.warning(
+          `Process pid=${runningCommand.pid} failed to complete after termination. Returning safe outcome.`,
+        )
+        return {
+          outcome: 'timeout',
+          exitCode: null,
+        }
+      }
+
+      return {
+        outcome: 'timeout',
+        exitCode: finalCompletion.exitCode,
+      }
+    } finally {
+      terminationTimeout.cancel()
     }
   } finally {
     timeout.cancel()

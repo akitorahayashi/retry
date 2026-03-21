@@ -8,13 +8,16 @@ import {
   logAttemptCompletion,
 } from './await-attempt-outcome'
 import { registerCommandTerminationOnSignal } from './terminate-command-on-signal'
+import { sanitizeCommand } from './sanitize-command'
+
+export { sanitizeCommand }
 
 export async function executeAttempt(
   command: CommandExecution,
   attempt: number,
   dependencies: ExecuteRetryDependencies,
 ): Promise<AttemptResult> {
-  core.info(`Running command: ${command.command}`)
+  core.info(`Running command: ${sanitizeCommand(command.command)}`)
 
   let runningCommand: RunningCommand | undefined
 
