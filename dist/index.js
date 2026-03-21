@@ -26009,22 +26009,22 @@ const runtimeDependencies = {
     sleep: sleep_1.sleep,
     terminateProcessTree: terminate_process_tree_1.terminateProcessTree,
 };
-async function executeRetry(request, dependencies = runtimeDependencies) {
+async function executeRetry(params, dependencies = runtimeDependencies) {
     const policy = {
-        retryOn: request.retryOn,
-        retryOnExitCodes: request.retryOnExitCodes,
+        retryOn: params.retryOn,
+        retryOnExitCodes: params.retryOnExitCodes,
     };
     const schedule = {
-        defaultDelaySeconds: request.retryDelaySeconds,
-        retryDelayScheduleSeconds: request.retryDelayScheduleSeconds,
+        defaultDelaySeconds: params.retryDelaySeconds,
+        retryDelayScheduleSeconds: params.retryDelayScheduleSeconds,
     };
     let finalAttempt;
-    for (let attempt = 1; attempt <= request.maxAttempts; attempt += 1) {
-        finalAttempt = await core.group(`Attempt ${attempt}/${request.maxAttempts}`, async () => runAttempt(request, attempt, dependencies));
+    for (let attempt = 1; attempt <= params.maxAttempts; attempt += 1) {
+        finalAttempt = await core.group(`Attempt ${attempt}/${params.maxAttempts}`, async () => runAttempt(params, attempt, dependencies));
         if (finalAttempt.outcome === 'success') {
             return (0, result_1.toFinalResult)(finalAttempt);
         }
-        if (attempt >= request.maxAttempts) {
+        if (attempt >= params.maxAttempts) {
             return (0, result_1.toFinalResult)(finalAttempt);
         }
         const retryable = (0, policy_1.shouldRetryFailure)(finalAttempt.outcome, finalAttempt.exitCode, policy);
@@ -26045,8 +26045,8 @@ async function executeRetry(request, dependencies = runtimeDependencies) {
     }
     return (0, result_1.toFinalResult)(finalAttempt);
 }
-async function runAttempt(request, attempt, dependencies) {
-    core.info(`Running command: ${request.command}`);
+async function runAttempt(command, attempt, dependencies) {
+    core.info(`Running command: ${command.command}`);
     let running;
     let timedOut = false;
     let timeoutTimer;
@@ -26054,11 +26054,11 @@ async function runAttempt(request, attempt, dependencies) {
         if (running?.isRunning()) {
             core.warning(`Received ${signal}. Terminating active command process tree.`);
             try {
-                await dependencies.terminateProcessTree(running.pid, request.terminationGraceSeconds);
+                await dependencies.terminateProcessTree(running.pid, command.terminationGraceSeconds);
             }
             catch (error) {
                 const message = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to terminate process tree pid=${running.pid} grace=${request.terminationGraceSeconds}s signal=${signal}: ${message}`);
+                core.error(`Failed to terminate process tree pid=${running.pid} grace=${command.terminationGraceSeconds}s signal=${signal}: ${message}`);
             }
         }
     };
@@ -26077,24 +26077,21 @@ async function runAttempt(request, attempt, dependencies) {
     process.once('SIGTERM', onSigterm);
     process.once('SIGINT', onSigint);
     try {
-        running = dependencies.runCommand(request.command, request.shell);
-        if (!running) {
-            throw new Error('Command process failed to start without throwing.');
-        }
-        const currentRunning = running;
-        if (request.timeoutSeconds !== undefined) {
+        running = dependencies.runCommand(command.command, command.shell);
+        if (command.timeoutSeconds !== undefined) {
+            const currentRunning = running;
             timeoutTimer = setTimeout(() => {
                 timedOut = true;
-                core.warning(`Attempt ${attempt} timed out after ${request.timeoutSeconds}s.`);
+                core.warning(`Attempt ${attempt} timed out after ${command.timeoutSeconds}s.`);
                 dependencies
-                    .terminateProcessTree(currentRunning.pid, request.terminationGraceSeconds)
+                    .terminateProcessTree(currentRunning.pid, command.terminationGraceSeconds)
                     .catch((error) => {
                     const message = error instanceof Error ? error.message : String(error);
-                    core.error(`Failed timeout termination pid=${currentRunning.pid} grace=${request.terminationGraceSeconds}s: ${message}`);
+                    core.error(`Failed timeout termination pid=${currentRunning.pid} grace=${command.terminationGraceSeconds}s: ${message}`);
                 });
-            }, request.timeoutSeconds * 1000);
+            }, command.timeoutSeconds * 1000);
         }
-        const completion = await currentRunning.completion;
+        const completion = await running.completion;
         if (timeoutTimer) {
             clearTimeout(timeoutTimer);
         }

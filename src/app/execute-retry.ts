@@ -5,11 +5,12 @@ import {
 } from '../adapters/run-shell-command'
 import { sleep } from '../adapters/sleep'
 import { terminateProcessTree } from '../adapters/terminate-process-tree'
-import type { RetryRequest } from '../action/read-inputs'
+import type { CommandExecution } from '../domain/command'
 import {
   shouldRetryFailure,
   type RetryPolicy,
   type AttemptOutcome,
+  type RetryOn,
 } from '../domain/policy'
 import {
   toFinalResult,
@@ -27,6 +28,18 @@ interface RuntimeDependencies {
   terminateProcessTree: (pid: number, graceSeconds: number) => Promise<void>
 }
 
+export interface ExecuteRetryParams {
+  command: string
+  maxAttempts: number
+  shell: string
+  timeoutSeconds?: number
+  retryDelaySeconds: number
+  retryDelayScheduleSeconds: readonly number[]
+  retryOn: RetryOn
+  retryOnExitCodes?: ReadonlySet<number>
+  terminationGraceSeconds: number
+}
+
 const runtimeDependencies: RuntimeDependencies = {
   runCommand: runShellCommand,
   sleep,
@@ -34,32 +47,32 @@ const runtimeDependencies: RuntimeDependencies = {
 }
 
 export async function executeRetry(
-  request: RetryRequest,
+  params: ExecuteRetryParams,
   dependencies: RuntimeDependencies = runtimeDependencies,
 ): Promise<FinalResult> {
   const policy: RetryPolicy = {
-    retryOn: request.retryOn,
-    retryOnExitCodes: request.retryOnExitCodes,
+    retryOn: params.retryOn,
+    retryOnExitCodes: params.retryOnExitCodes,
   }
 
   const schedule: RetrySchedule = {
-    defaultDelaySeconds: request.retryDelaySeconds,
-    retryDelayScheduleSeconds: request.retryDelayScheduleSeconds,
+    defaultDelaySeconds: params.retryDelaySeconds,
+    retryDelayScheduleSeconds: params.retryDelayScheduleSeconds,
   }
 
   let finalAttempt: AttemptResult | undefined
 
-  for (let attempt = 1; attempt <= request.maxAttempts; attempt += 1) {
+  for (let attempt = 1; attempt <= params.maxAttempts; attempt += 1) {
     finalAttempt = await core.group(
-      `Attempt ${attempt}/${request.maxAttempts}`,
-      async () => runAttempt(request, attempt, dependencies),
+      `Attempt ${attempt}/${params.maxAttempts}`,
+      async () => runAttempt(params, attempt, dependencies),
     )
 
     if (finalAttempt.outcome === 'success') {
       return toFinalResult(finalAttempt)
     }
 
-    if (attempt >= request.maxAttempts) {
+    if (attempt >= params.maxAttempts) {
       return toFinalResult(finalAttempt)
     }
 
@@ -97,11 +110,11 @@ export async function executeRetry(
 }
 
 async function runAttempt(
-  request: RetryRequest,
+  command: CommandExecution,
   attempt: number,
   dependencies: RuntimeDependencies,
 ): Promise<AttemptResult> {
-  core.info(`Running command: ${request.command}`)
+  core.info(`Running command: ${command.command}`)
 
   let running: RunningCommand | undefined
   let timedOut = false
@@ -115,12 +128,12 @@ async function runAttempt(
       try {
         await dependencies.terminateProcessTree(
           running.pid,
-          request.terminationGraceSeconds,
+          command.terminationGraceSeconds,
         )
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error)
         core.error(
-          `Failed to terminate process tree pid=${running.pid} grace=${request.terminationGraceSeconds}s signal=${signal}: ${message}`,
+          `Failed to terminate process tree pid=${running.pid} grace=${command.terminationGraceSeconds}s signal=${signal}: ${message}`,
         )
       }
     }
@@ -144,35 +157,31 @@ async function runAttempt(
   process.once('SIGINT', onSigint)
 
   try {
-    running = dependencies.runCommand(request.command, request.shell)
+    running = dependencies.runCommand(command.command, command.shell)
 
-    if (!running) {
-      throw new Error('Command process failed to start without throwing.')
-    }
-    const currentRunning = running
-
-    if (request.timeoutSeconds !== undefined) {
+    if (command.timeoutSeconds !== undefined) {
+      const currentRunning = running
       timeoutTimer = setTimeout(() => {
         timedOut = true
         core.warning(
-          `Attempt ${attempt} timed out after ${request.timeoutSeconds}s.`,
+          `Attempt ${attempt} timed out after ${command.timeoutSeconds}s.`,
         )
         dependencies
           .terminateProcessTree(
             currentRunning.pid,
-            request.terminationGraceSeconds,
+            command.terminationGraceSeconds,
           )
           .catch((error: unknown) => {
             const message =
               error instanceof Error ? error.message : String(error)
             core.error(
-              `Failed timeout termination pid=${currentRunning.pid} grace=${request.terminationGraceSeconds}s: ${message}`,
+              `Failed timeout termination pid=${currentRunning.pid} grace=${command.terminationGraceSeconds}s: ${message}`,
             )
           })
-      }, request.timeoutSeconds * 1000)
+      }, command.timeoutSeconds * 1000)
     }
 
-    const completion = await currentRunning.completion
+    const completion = await running.completion
 
     if (timeoutTimer) {
       clearTimeout(timeoutTimer)
