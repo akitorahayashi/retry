@@ -27,10 +27,12 @@ export async function executeAttempt(
   try {
     runningCommand = dependencies.runCommand(command.command, command.shell)
 
-    const result = await awaitAttemptOutcome(command, attempt, runningCommand, {
-      delay: dependencies.delay,
-      terminateProcessTree: dependencies.terminateProcessTree,
-    })
+    const result = await awaitAttemptOutcome(
+      command,
+      attempt,
+      runningCommand,
+      dependencies,
+    )
 
     logAttemptCompletion(attempt, result.outcome, result.exitCode)
 
