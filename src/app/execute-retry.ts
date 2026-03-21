@@ -116,12 +116,12 @@ async function runAttempt(
 ): Promise<AttemptResult> {
   core.info(`Running command: ${command.command}`)
 
-  const running = dependencies.runCommand(command.command, command.shell)
+  let running: RunningCommand | undefined
   let timedOut = false
   let timeoutTimer: NodeJS.Timeout | undefined
 
   const onSignal = async (signal: NodeJS.Signals): Promise<void> => {
-    if (running.isRunning()) {
+    if (running?.isRunning()) {
       core.warning(
         `Received ${signal}. Terminating active command process tree.`,
       )
@@ -156,24 +156,31 @@ async function runAttempt(
   process.once('SIGTERM', onSigterm)
   process.once('SIGINT', onSigint)
 
-  if (command.timeoutSeconds !== undefined) {
-    timeoutTimer = setTimeout(() => {
-      timedOut = true
-      core.warning(
-        `Attempt ${attempt} timed out after ${command.timeoutSeconds}s.`,
-      )
-      dependencies
-        .terminateProcessTree(running.pid, command.terminationGraceSeconds)
-        .catch((error: unknown) => {
-          const message = error instanceof Error ? error.message : String(error)
-          core.error(
-            `Failed timeout termination pid=${running.pid} grace=${command.terminationGraceSeconds}s: ${message}`,
-          )
-        })
-    }, command.timeoutSeconds * 1000)
-  }
-
   try {
+    running = dependencies.runCommand(command.command, command.shell)
+
+    if (command.timeoutSeconds !== undefined) {
+      const currentRunning = running
+      timeoutTimer = setTimeout(() => {
+        timedOut = true
+        core.warning(
+          `Attempt ${attempt} timed out after ${command.timeoutSeconds}s.`,
+        )
+        dependencies
+          .terminateProcessTree(
+            currentRunning.pid,
+            command.terminationGraceSeconds,
+          )
+          .catch((error: unknown) => {
+            const message =
+              error instanceof Error ? error.message : String(error)
+            core.error(
+              `Failed timeout termination pid=${currentRunning.pid} grace=${command.terminationGraceSeconds}s: ${message}`,
+            )
+          })
+      }, command.timeoutSeconds * 1000)
+    }
+
     const completion = await running.completion
 
     if (timeoutTimer) {
@@ -194,6 +201,19 @@ async function runAttempt(
       attempt,
       outcome,
       exitCode: completion.exitCode,
+    }
+  } catch (error: unknown) {
+    if (timeoutTimer) {
+      clearTimeout(timeoutTimer)
+    }
+
+    const message = error instanceof Error ? error.message : String(error)
+    core.error(`Attempt ${attempt} failed to execute command: ${message}`)
+
+    return {
+      attempt,
+      outcome: 'error',
+      exitCode: null,
     }
   } finally {
     process.off('SIGTERM', onSigterm)

@@ -26047,11 +26047,11 @@ async function executeRetry(params, dependencies = runtimeDependencies) {
 }
 async function runAttempt(command, attempt, dependencies) {
     core.info(`Running command: ${command.command}`);
-    const running = dependencies.runCommand(command.command, command.shell);
+    let running;
     let timedOut = false;
     let timeoutTimer;
     const onSignal = async (signal) => {
-        if (running.isRunning()) {
+        if (running?.isRunning()) {
             core.warning(`Received ${signal}. Terminating active command process tree.`);
             try {
                 await dependencies.terminateProcessTree(running.pid, command.terminationGraceSeconds);
@@ -26076,19 +26076,21 @@ async function runAttempt(command, attempt, dependencies) {
     };
     process.once('SIGTERM', onSigterm);
     process.once('SIGINT', onSigint);
-    if (command.timeoutSeconds !== undefined) {
-        timeoutTimer = setTimeout(() => {
-            timedOut = true;
-            core.warning(`Attempt ${attempt} timed out after ${command.timeoutSeconds}s.`);
-            dependencies
-                .terminateProcessTree(running.pid, command.terminationGraceSeconds)
-                .catch((error) => {
-                const message = error instanceof Error ? error.message : String(error);
-                core.error(`Failed timeout termination pid=${running.pid} grace=${command.terminationGraceSeconds}s: ${message}`);
-            });
-        }, command.timeoutSeconds * 1000);
-    }
     try {
+        running = dependencies.runCommand(command.command, command.shell);
+        if (command.timeoutSeconds !== undefined) {
+            const currentRunning = running;
+            timeoutTimer = setTimeout(() => {
+                timedOut = true;
+                core.warning(`Attempt ${attempt} timed out after ${command.timeoutSeconds}s.`);
+                dependencies
+                    .terminateProcessTree(currentRunning.pid, command.terminationGraceSeconds)
+                    .catch((error) => {
+                    const message = error instanceof Error ? error.message : String(error);
+                    core.error(`Failed timeout termination pid=${currentRunning.pid} grace=${command.terminationGraceSeconds}s: ${message}`);
+                });
+            }, command.timeoutSeconds * 1000);
+        }
         const completion = await running.completion;
         if (timeoutTimer) {
             clearTimeout(timeoutTimer);
@@ -26103,6 +26105,18 @@ async function runAttempt(command, attempt, dependencies) {
             attempt,
             outcome,
             exitCode: completion.exitCode,
+        };
+    }
+    catch (error) {
+        if (timeoutTimer) {
+            clearTimeout(timeoutTimer);
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        core.error(`Attempt ${attempt} failed to execute command: ${message}`);
+        return {
+            attempt,
+            outcome: 'error',
+            exitCode: null,
         };
     }
     finally {
@@ -26125,22 +26139,30 @@ function formatExitCode(exitCode) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.shouldRetryFailure = shouldRetryFailure;
 function shouldRetryFailure(outcome, exitCode, policy) {
-    if (outcome === 'success') {
-        return false;
-    }
-    if (policy.retryOn === 'error' && outcome !== 'error') {
-        return false;
-    }
-    if (policy.retryOn === 'timeout' && outcome !== 'timeout') {
-        return false;
-    }
-    if (outcome === 'error' && policy.retryOnExitCodes) {
-        if (exitCode === null) {
+    switch (outcome) {
+        case 'success':
             return false;
+        case 'timeout':
+            if (policy.retryOn === 'error') {
+                return false;
+            }
+            return true;
+        case 'error':
+            if (policy.retryOn === 'timeout') {
+                return false;
+            }
+            if (policy.retryOnExitCodes) {
+                if (exitCode === null) {
+                    return false;
+                }
+                return policy.retryOnExitCodes.has(exitCode);
+            }
+            return true;
+        default: {
+            const _exhaustiveCheck = outcome;
+            return _exhaustiveCheck;
         }
-        return policy.retryOnExitCodes.has(exitCode);
     }
-    return true;
 }
 
 
