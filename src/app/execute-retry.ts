@@ -3,6 +3,7 @@ import {
   runShellCommand,
   type RunningCommand,
 } from '../adapters/run-shell-command'
+import { delay } from '../adapters/delay'
 import { sleep } from '../adapters/sleep'
 import { terminateProcessTree } from '../adapters/terminate-process-tree'
 import type { CommandExecution } from '../domain/command'
@@ -24,6 +25,10 @@ import {
 
 interface RuntimeDependencies {
   runCommand: (command: string, shell: string) => RunningCommand
+  delay: (milliseconds: number) => {
+    promise: Promise<void>
+    cancel: () => void
+  }
   sleep: (milliseconds: number) => Promise<void>
   terminateProcessTree: (pid: number, graceSeconds: number) => Promise<void>
 }
@@ -42,6 +47,7 @@ export interface ExecuteRetryParams {
 
 const runtimeDependencies: RuntimeDependencies = {
   runCommand: runShellCommand,
+  delay,
   sleep,
   terminateProcessTree,
 }
@@ -56,7 +62,7 @@ export async function executeRetry(
   }
 
   const schedule: RetrySchedule = {
-    defaultDelaySeconds: params.retryDelaySeconds,
+    retryDelaySeconds: params.retryDelaySeconds,
     retryDelayScheduleSeconds: params.retryDelayScheduleSeconds,
   }
 
@@ -89,8 +95,7 @@ export async function executeRetry(
       return toFinalResult(finalAttempt)
     }
 
-    const retryIndex = attempt
-    const delaySeconds = resolveRetryDelaySeconds(retryIndex, schedule)
+    const delaySeconds = resolveRetryDelaySeconds(attempt, schedule)
 
     core.warning(
       `Attempt ${attempt} failed with ${finalAttempt.outcome} (exit code: ${formatExitCode(finalAttempt.exitCode)}). Retrying.`,
@@ -117,8 +122,7 @@ async function runAttempt(
   core.info(`Running command: ${command.command}`)
 
   let running: RunningCommand | undefined
-  let timedOut = false
-  let timeoutTimer: NodeJS.Timeout | undefined
+  let timeoutCancel: (() => void) | undefined
 
   const onSignal = async (signal: NodeJS.Signals): Promise<void> => {
     if (running?.isRunning()) {
@@ -159,54 +163,66 @@ async function runAttempt(
   try {
     running = dependencies.runCommand(command.command, command.shell)
 
+    const completionPromise = running.completion.then((completion) => ({
+      type: 'completion' as const,
+      completion,
+    }))
+
+    let racePromise: Promise<
+      | { type: 'completion'; completion: { exitCode: number | null } }
+      | { type: 'timeout' }
+    > = completionPromise
+
     if (command.timeoutSeconds !== undefined) {
-      const currentRunning = running
-      timeoutTimer = setTimeout(() => {
-        timedOut = true
-        core.warning(
-          `Attempt ${attempt} timed out after ${command.timeoutSeconds}s.`,
+      const timeout = dependencies.delay(command.timeoutSeconds * 1000)
+      timeoutCancel = timeout.cancel
+      const timeoutPromise = timeout.promise.then(() => ({
+        type: 'timeout' as const,
+      }))
+      racePromise = Promise.race([completionPromise, timeoutPromise])
+    }
+
+    const result = await racePromise
+
+    if (result.type === 'timeout') {
+      core.warning(
+        `Attempt ${attempt} timed out after ${command.timeoutSeconds}s.`,
+      )
+
+      try {
+        await dependencies.terminateProcessTree(
+          running.pid,
+          command.terminationGraceSeconds,
         )
-        dependencies
-          .terminateProcessTree(
-            currentRunning.pid,
-            command.terminationGraceSeconds,
-          )
-          .catch((error: unknown) => {
-            const message =
-              error instanceof Error ? error.message : String(error)
-            core.error(
-              `Failed timeout termination pid=${currentRunning.pid} grace=${command.terminationGraceSeconds}s: ${message}`,
-            )
-          })
-      }, command.timeoutSeconds * 1000)
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error)
+        core.error(
+          `Failed timeout termination pid=${running.pid} grace=${command.terminationGraceSeconds}s: ${message}`,
+        )
+      }
+
+      const completion = await running.completion
+
+      return {
+        attempt,
+        outcome: 'timeout',
+        exitCode: completion.exitCode,
+      }
     }
 
-    const completion = await running.completion
-
-    if (timeoutTimer) {
-      clearTimeout(timeoutTimer)
-    }
-
-    const outcome: AttemptOutcome = timedOut
-      ? 'timeout'
-      : completion.exitCode === 0
-        ? 'success'
-        : 'error'
+    const outcome: AttemptOutcome =
+      result.completion.exitCode === 0 ? 'success' : 'error'
 
     core.info(
-      `Attempt ${attempt} completed with outcome=${outcome} exitCode=${formatExitCode(completion.exitCode)}`,
+      `Attempt ${attempt} completed with outcome=${outcome} exitCode=${formatExitCode(result.completion.exitCode)}`,
     )
 
     return {
       attempt,
       outcome,
-      exitCode: completion.exitCode,
+      exitCode: result.completion.exitCode,
     }
   } catch (error: unknown) {
-    if (timeoutTimer) {
-      clearTimeout(timeoutTimer)
-    }
-
     const message = error instanceof Error ? error.message : String(error)
     core.error(`Attempt ${attempt} failed to execute command: ${message}`)
 
@@ -216,6 +232,9 @@ async function runAttempt(
       exitCode: null,
     }
   } finally {
+    if (timeoutCancel) {
+      timeoutCancel()
+    }
     process.off('SIGTERM', onSigterm)
     process.off('SIGINT', onSigint)
   }
