@@ -51,7 +51,9 @@ export async function awaitAttemptOutcome(
       }
     }
 
-    core.warning(`Attempt ${attempt} timed out after ${command.timeoutSeconds}s.`)
+    core.warning(
+      `Attempt ${attempt} timed out after ${command.timeoutSeconds}s.`,
+    )
 
     try {
       await dependencies.terminateProcessTree(
