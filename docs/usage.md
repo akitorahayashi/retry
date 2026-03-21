@@ -53,8 +53,6 @@ Repository-local verification commands are:
 - `just fix`
 - `just check`
 - `just test`
-- `just package`
-- `just verify-dist`
 
-`just fix` refreshes committed `dist/` after source-side fixes.
-`just check` includes committed `dist/` verification.
+`just fix` applies formatter and safe lint fixes.
+`just check` validates format, lint, and type safety.
