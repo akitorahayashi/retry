@@ -26019,14 +26019,8 @@ async function executeRetry(params, dependencies = runtimeDependencies) {
         retryDelayScheduleSeconds: params.retryDelayScheduleSeconds,
     };
     let finalAttempt;
-    const command = {
-        command: params.command,
-        shell: params.shell,
-        timeoutSeconds: params.timeoutSeconds,
-        terminationGraceSeconds: params.terminationGraceSeconds,
-    };
     for (let attempt = 1; attempt <= params.maxAttempts; attempt += 1) {
-        finalAttempt = await core.group(`Attempt ${attempt}/${params.maxAttempts}`, async () => runAttempt(command, attempt, dependencies));
+        finalAttempt = await core.group(`Attempt ${attempt}/${params.maxAttempts}`, async () => runAttempt(params, attempt, dependencies));
         if (finalAttempt.outcome === 'success') {
             return (0, result_1.toFinalResult)(finalAttempt);
         }
