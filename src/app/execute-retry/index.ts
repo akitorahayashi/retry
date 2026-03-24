@@ -73,7 +73,7 @@ export async function executeRetry(
 
     if (delaySeconds > 0) {
       core.info(`Waiting ${delaySeconds}s before next attempt.`)
-      await dependencies.sleep(delaySeconds * 1000)
+      await dependencies.delay(delaySeconds * 1000).promise
     }
   }
 
