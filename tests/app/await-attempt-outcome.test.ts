@@ -1,5 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { awaitAttemptOutcome, logAttemptCompletion } from '../../src/app/execute-retry/await-attempt-outcome'
+import {
+  awaitAttemptOutcome,
+  logAttemptCompletion,
+} from '../../src/app/execute-retry/await-attempt-outcome'
 import * as core from '@actions/core'
 import type { RunningCommand } from '../../src/adapters/run-shell-command'
 import type { CommandExecution } from '../../src/domain/command'
