@@ -17,7 +17,7 @@ runs:
         cache: npm
 
     - name: Setup just
-      uses: extractions/setup-just@v2
+      uses: extractions/setup-just@dd310ad5a97d8e7b41793f8ef055398d51ad4de6
       with:
         just-version: 1.46.0
 
