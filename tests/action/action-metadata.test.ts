@@ -19,11 +19,15 @@ function loadActionFile(path: string): ActionFile {
 }
 
 describe('action metadata contracts', () => {
-  it('declares node24 retry contract inputs and outputs', () => {
+  it('configures the execution environment', () => {
     const action = loadActionFile('action.yml')
 
     expect(action.runs.using).toBe('node24')
     expect(action.runs.main).toBe('dist/index.js')
+  })
+
+  it('defines required and optional inputs', () => {
+    const action = loadActionFile('action.yml')
 
     expect(action.inputs.command.required).toBe(true)
     expect(action.inputs.max_attempts.required).toBe(true)
@@ -40,6 +44,10 @@ describe('action metadata contracts', () => {
     expect(action.inputs.continue_on_error.default).toBe('false')
     expect(action.inputs.termination_grace_seconds.required).toBe(false)
     expect(action.inputs.termination_grace_seconds.default).toBe('5')
+  })
+
+  it('defines action outputs', () => {
+    const action = loadActionFile('action.yml')
 
     expect(Object.keys(action.outputs)).toEqual(
       expect.arrayContaining([
