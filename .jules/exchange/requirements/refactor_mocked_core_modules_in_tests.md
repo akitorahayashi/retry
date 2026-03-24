@@ -1,17 +1,15 @@
 ---
 label: "tests"
-created_at: "2024-03-24"
-author_role: "qa"
-confidence: "high"
+implementation_ready: false
 ---
-
-## Problem
-
-`tests/adapters/run-shell-command.test.ts` has a fuzzy and problematic boundary design between asserting real child process logic and simulating mock failures, relying on globally mocking a core node module (`node:child_process`).
 
 ## Goal
 
 Decouple tests from core Node module internals by making the dependency injection explicit for testing boundaries, or ensure the global `child_process` mock isn't stateful and conflicting when tests alternate between real execution and simulated errors.
+
+## Problem
+
+`tests/adapters/run-shell-command.test.ts` has a fuzzy and problematic boundary design between asserting real child process logic and simulating mock failures, relying on globally mocking a core node module (`node:child_process`).
 
 ## Context
 
@@ -21,16 +19,29 @@ The test file `tests/adapters/run-shell-command.test.ts` uses `vi.mock('node:chi
 
 For multi-file events, add multiple list items.
 
-- path: "tests/adapters/run-shell-command.test.ts"
+- source_event: "mocked_core_modules_boundary_qa.md"
+  path: "tests/adapters/run-shell-command.test.ts"
   loc: "line 7-13"
   note: "Globally mocks the core module `node:child_process` and replaces `spawn`."
-- path: "tests/adapters/run-shell-command.test.ts"
+- source_event: "mocked_core_modules_boundary_qa.md"
+  path: "tests/adapters/run-shell-command.test.ts"
   loc: "line 26"
   note: "Test block 'returns zero exit code when command succeeds' runs real fixture, relying on `actual.spawn` inside the mock factory."
-- path: "tests/adapters/run-shell-command.test.ts"
+- source_event: "mocked_core_modules_boundary_qa.md"
+  path: "tests/adapters/run-shell-command.test.ts"
   loc: "line 47"
   note: "Test block 'throws an error if the process fails to start and has no pid' overrides the mock to simulate failure."
 
 ## Change Scope
 
 - `tests/adapters/run-shell-command.test.ts`
+
+## Constraints
+
+- Changes must be isolated to the identified scope.
+- Preserve existing functionality.
+
+## Acceptance Criteria
+
+- Tests pass and coverage is maintained or improved.
+- Addressed all concerns identified in the problem statement.
