@@ -19,14 +19,12 @@ describe('sanitizeCommand', () => {
   })
 
   it('returns the basename and argument count for a path command with arguments', () => {
-    expect(sanitizeCommand('/bin/bash -c "echo hello"')).toBe(
-      'bash [+3 args]',
-    )
+    expect(sanitizeCommand('/bin/bash -c "echo hello"')).toBe('bash [+3 args]')
   })
 
   it('returns the basename and argument count for a windows path command with arguments', () => {
-    expect(sanitizeCommand('C:\\Windows\\System32\\cmd.exe /c "echo hello"')).toBe(
-      'cmd.exe [+3 args]',
-    )
+    expect(
+      sanitizeCommand('C:\\Windows\\System32\\cmd.exe /c "echo hello"'),
+    ).toBe('cmd.exe [+3 args]')
   })
 })
