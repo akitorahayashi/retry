@@ -33,7 +33,6 @@ jobs:
   # Phase 0: Bootstrap runtime repository on worker branch
   # ============================================================
 
-
   bootstrap:
     
     if: >-
@@ -75,7 +74,7 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Sync worker branch
@@ -123,7 +122,6 @@ jobs:
             --commit-message "chore: bootstrap .jules/ runtime repository [jlo ${jlo_version}]" \
             --pr-title "chore: bootstrap runtime workspace" \
             --pr-body "${pr_body}"
-
 
       - name: Wait for bootstrap sync PR merge
         id: wait_for_sync_pr
@@ -176,7 +174,7 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Resolve implementer targets
@@ -194,13 +192,21 @@ jobs:
 
   
   
+  
+  
   request-implementer-run:
     needs: ["bootstrap", "resolve-implementer-matrix"]
+    
     if: |
       !cancelled() &&
+
+
+
+      needs.bootstrap.result == 'success' &&
+
       needs.resolve-implementer-matrix.result == 'success' &&
+
       fromJSON(needs.resolve-implementer-matrix.outputs.json || '{"count":0,"skipped_count":0,"matrix":[]}').count > 0 &&
-      needs.resolve-implementer-matrix.result == 'success' &&
       fromJSON(needs.resolve-implementer-matrix.outputs.json || '{"count":0,"skipped_count":0,"matrix":[]}').count > 0
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -235,7 +241,7 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Run implementer (${{ matrix.target }})
@@ -258,44 +264,39 @@ jobs:
     outputs:
       json: ${{ steps.report.outputs.json }}
     steps:
-      - name: Report Run implementer status
-        id: report
-        shell: bash
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: 'main'
+          fetch-depth: 0
+          token: ${{ secrets.JLO_BOT_PAT }}
+
+
+      - name: Configure Git
         run: |
           set -euo pipefail
-          requested_flag='${{ fromJSON(needs.resolve-implementer-matrix.outputs.json || '{"count":0,"skipped_count":0,"matrix":[]}').count > 0 }}'
-          target_count='${{ fromJSON(needs.resolve-implementer-matrix.outputs.json || '{"count":0,"skipped_count":0,"matrix":[]}').count }}'
-          request_result='${{ needs.request-implementer-run.result }}'
-          if [ "${requested_flag}" = "true" ]; then
-            if [ "${target_count}" = "0" ]; then
-              if [ "${request_result}" != "skipped" ]; then
-                echo "::error::Expected skipped run request for 'implementer' with zero targets but got '${request_result}'."
-                exit 1
-              fi
-              requested=false
-            else
-              if [ "${request_result}" != "success" ]; then
-                echo "::error::Expected successful run request for 'implementer' but got '${request_result}'."
-                exit 1
-              fi
-              requested=true
-            fi
-          else
-            if [ "${request_result}" != "skipped" ]; then
-              echo "::error::Expected skipped run request for 'implementer' but got '${request_result}'."
-              exit 1
-            fi
-            requested=false
-          fi
+          git config user.name "aria"
+          git config user.email "aria67323@gmail.com"
 
-          count=0
-          if [ "${requested}" = "true" ]; then
-            count="${target_count}"
-          fi
+      - name: Install jlo
+        uses: asterismhq/setup-jlo@v1
+        with:
+          token: ${{ secrets.JLO_RELEASE_PAT }}
+          version: '24.1.0'
+          submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
-          json="$(printf '{"requested":%s,"count":%s}\n' "${requested}" "${count}")"
-          echo "${json}"
-          echo "json=${json}" >> "$GITHUB_OUTPUT"
+      - name: Report Run implementer status
+        id: report
+        env:
+          REQUESTED_FLAG: ${{ fromJSON(needs.resolve-implementer-matrix.outputs.json || '{"count":0,"skipped_count":0,"matrix":[]}').count > 0 }}
+          TARGET_COUNT: ${{ fromJSON(needs.resolve-implementer-matrix.outputs.json || '{"count":0,"skipped_count":0,"matrix":[]}').count }}
+          REQUEST_RESULT: ${{ needs.request-implementer-run.result }}
+        run: |
+          set -euo pipefail
+          jlo workflow resolve matrix-run-status \
+            --requested "${REQUESTED_FLAG}" \
+            --result "${REQUEST_RESULT}" \
+            --target-count "${TARGET_COUNT}"
+
   # ============================================================
   # Phase 3: Cleanup mock artifacts
   # ============================================================
@@ -345,7 +346,7 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Cleanup mock artifacts for this run

@@ -38,7 +38,6 @@ jobs:
   # Phase 0: Bootstrap runtime repository on worker branch
   # ============================================================
 
-
   bootstrap:
     
     if: >-
@@ -80,7 +79,7 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Sync worker branch
@@ -129,7 +128,6 @@ jobs:
             --pr-title "chore: bootstrap runtime workspace" \
             --pr-body "${pr_body}"
 
-
       - name: Wait for bootstrap sync PR merge
         id: wait_for_sync_pr
         if: ${{ fromJSON(steps.sync_pr.outputs.json || '{}').applied == true }}
@@ -152,16 +150,20 @@ jobs:
 
   
   
-  request-scribe-run:
+  
+  run-scribe:
     needs: ["bootstrap"]
+    
     if: |
       !cancelled() &&
+
+
       needs.bootstrap.result == 'success'
 
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     outputs:
-      json: ${{ steps.run.outputs.json }}
+      json: ${{ steps.report.outputs.json }}
     env:
       JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
       GH_TOKEN: ${{ secrets.JLO_BOT_PAT }}
@@ -183,63 +185,38 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
       - name: Run scribe
         id: run
+        if: ${{ needs.bootstrap.result == 'success' }}
+        continue-on-error: true
         run: |
           set -euo pipefail
           result=$(jlo run --json scribe ${{ env.JLO_RUN_FLAGS }})
           echo "${result}"
           echo "json=${result}" >> "$GITHUB_OUTPUT"
-
-  report-scribe-status:
-    needs: ["bootstrap", "request-scribe-run"]
-    if: |
-      !cancelled() &&
-      always() &&
-      needs.bootstrap.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    outputs:
-      json: ${{ steps.report.outputs.json }}
-    steps:
       - name: Report Run scribe status
         id: report
-        shell: bash
+        if: ${{ always() }}
+        env:
+          REQUESTED_FLAG: ${{ true }}
+          REQUEST_RESULT: ${{ steps.run.outcome }}
+          RUN_JSON: ${{ steps.run.outputs.json || '{}' }}
         run: |
           set -euo pipefail
-          requested_flag='${{ true }}'
-          request_result='${{ needs.request-scribe-run.result }}'
-          request_count='${{ fromJSON(needs.request-scribe-run.outputs.json || '{}').number_of_api_requests_succeeded || 0 }}'
-          should_wait='${{ fromJSON(needs.request-scribe-run.outputs.json || '{}').should_wait == true }}'
-          if [ "${requested_flag}" = "true" ]; then
-            if [ "${request_result}" != "success" ]; then
-              echo "::error::Expected successful run request for 'scribe' but got '${request_result}'."
-              exit 1
-            fi
-            requested=false
-            if [ "${should_wait}" = "true" ]; then
-              requested=true
-            fi
-          else
-            if [ "${request_result}" != "skipped" ]; then
-              echo "::error::Expected skipped run request for 'scribe' but got '${request_result}'."
-              exit 1
-            fi
-            requested=false
-          fi
+          jlo workflow resolve run-status \
+            --requested "${REQUESTED_FLAG}" \
+            --result "${REQUEST_RESULT}" \
+            --run-json "${RUN_JSON}"
 
-          json="$(printf '{"requested":%s,"count":%s}\n' "${requested}" "${request_count}")"
-          echo "${json}"
-          echo "json=${json}" >> "$GITHUB_OUTPUT"
   # ============================================================
   # Phase 2: Cleanup mock artifacts
   # ============================================================
 
 
   cleanup-mock-artifacts:
-    needs: ["report-scribe-status"]
+    needs: ["run-scribe"]
     if: |
       !cancelled() &&
       always() &&
@@ -282,7 +259,7 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Cleanup mock artifacts for this run

@@ -1,6 +1,5 @@
 import * as core from '@actions/core'
-
-export type RetryOn = 'any' | 'error' | 'timeout'
+import type { RetryOn } from '../domain/policy'
 
 export interface RetryRequest {
   command: string

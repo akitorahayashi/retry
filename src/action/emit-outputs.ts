@@ -1,13 +1,7 @@
 import * as core from '@actions/core'
+import type { FinalResult } from '../domain/result'
 
-export interface RetryActionOutput {
-  attempts: number
-  finalExitCode: number | null
-  finalOutcome: 'success' | 'error' | 'timeout'
-  succeeded: boolean
-}
-
-export function emitOutputs(result: RetryActionOutput): void {
+export function emitOutputs(result: FinalResult): void {
   core.setOutput('attempts', result.attempts)
   core.setOutput(
     'final_exit_code',
