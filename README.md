@@ -27,14 +27,14 @@ Inputs:
 
 - `command` (required)
 - `max_attempts` (required)
-- `shell` (optional)
+- `shell` (optional, default: `bash`)
 - `timeout_seconds` (optional)
-- `retry_delay_seconds` (optional)
+- `retry_delay_seconds` (optional, default: `'0'`)
 - `retry_delay_schedule_seconds` (optional)
 - `retry_on` (optional, `any | error | timeout`, default: `any`)
 - `retry_on_exit_codes` (optional)
 - `continue_on_error` (optional, default: `false`)
-- `termination_grace_seconds` (optional)
+- `termination_grace_seconds` (optional, default: `'5'`)
 
 Outputs:
 
