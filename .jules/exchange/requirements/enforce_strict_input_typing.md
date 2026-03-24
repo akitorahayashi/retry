@@ -1,17 +1,15 @@
 ---
 label: "refacts"
-created_at: "2024-05-24"
-author_role: "data_arch"
-confidence: "high"
+implementation_ready: false
 ---
-
-## Problem
-
-`ExecuteRetryParams` is structurally equivalent to a combination of `CommandExecution`, `RetryPolicy`, and `RetrySchedule`, but instead of composing them or constructing domain models at the boundary, the application logic directly expects a flattened parameter object that mirrors the transport DTO (`RetryRequest`).
 
 ## Goal
 
 Create a strict boundary between transport logic (reading inputs) and domain execution by explicitly converting inputs into nested domain models (`CommandExecution`, `RetryPolicy`, `RetrySchedule`), making `executeRetry` accept domain models rather than flat parameters.
+
+## Problem
+
+`ExecuteRetryParams` is structurally equivalent to a combination of `CommandExecution`, `RetryPolicy`, and `RetrySchedule`, but instead of composing them or constructing domain models at the boundary, the application logic directly expects a flattened parameter object that mirrors the transport DTO (`RetryRequest`).
 
 ## Context
 
@@ -21,16 +19,20 @@ This is structural typing leading to implicit boundary overlap. The inputs shoul
 
 ## Evidence
 
-- path: "src/app/execute-retry/index.ts"
+- source_event: "implicit_structural_typing_data_arch.md"
+  path: "src/app/execute-retry/index.ts"
   loc: "17-27"
   note: "`ExecuteRetryParams` duplicates properties from domain models instead of composing them."
-- path: "src/app/execute-retry/index.ts"
+- source_event: "implicit_structural_typing_data_arch.md"
+  path: "src/app/execute-retry/index.ts"
   loc: "37-45"
   note: "`executeRetry` manually reassembles the `RetryPolicy` and `RetrySchedule` from the flat params."
-- path: "src/app/execute-retry/index.ts"
+- source_event: "implicit_structural_typing_data_arch.md"
+  path: "src/app/execute-retry/index.ts"
   loc: "52"
   note: "`executeAttempt(params, attempt, dependencies)` implicitly relies on `ExecuteRetryParams` being structurally compatible with `CommandExecution`."
-- path: "src/app/execute-retry/execute-attempt.ts"
+- source_event: "implicit_structural_typing_data_arch.md"
+  path: "src/app/execute-retry/execute-attempt.ts"
   loc: "16-20"
   note: "`executeAttempt` signature takes `CommandExecution`, meaning the caller (`executeRetry`) passed its flattened params object which implicitly matched the shape."
 
@@ -38,3 +40,13 @@ This is structural typing leading to implicit boundary overlap. The inputs shoul
 
 - `src/app/execute-retry/index.ts`
 - `src/index.ts`
+
+## Constraints
+
+- Changes must be isolated to the identified scope.
+- Preserve existing functionality.
+
+## Acceptance Criteria
+
+- Tests pass and coverage is maintained or improved.
+- Addressed all concerns identified in the problem statement.

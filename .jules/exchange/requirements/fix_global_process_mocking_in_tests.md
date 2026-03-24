@@ -1,17 +1,15 @@
 ---
 label: "tests"
-created_at: "2024-03-24"
-author_role: "qa"
-confidence: "high"
+implementation_ready: false
 ---
-
-## Problem
-
-`tests/app/execute-retry.test.ts` mutates global `process` methods (`process.exit`, `process.once`, `process.off`) in a specific test without restoring them afterward in an `afterEach` hook or within the test itself, causing diagnosability issues via shared global state leakage.
 
 ## Goal
 
 Ensure all global environment mocks (like `process` methods) are properly isolated per test by restoring all mocks in `afterEach` or avoiding global mutation if possible.
+
+## Problem
+
+`tests/app/execute-retry.test.ts` mutates global `process` methods (`process.exit`, `process.once`, `process.off`) in a specific test without restoring them afterward in an `afterEach` hook or within the test itself, causing diagnosability issues via shared global state leakage.
 
 ## Context
 
@@ -21,16 +19,29 @@ Mutating globals inside a specific `it` block and failing to restore them can le
 
 For multi-file events, add multiple list items.
 
-- path: "tests/app/execute-retry.test.ts"
+- source_event: "global_process_mocking_and_diagnosability_qa.md"
+  path: "tests/app/execute-retry.test.ts"
   loc: "line 84-89"
   note: "Mocks `process.once`, `process.off`, and `process.exit` without cleaning them up."
-- path: "tests/app/execute-retry.test.ts"
+- source_event: "global_process_mocking_and_diagnosability_qa.md"
+  path: "tests/app/execute-retry.test.ts"
   loc: "line 78"
   note: "Test block 'interrupts running command and terminates process tree on $signal' contains global mutations."
-- path: "tests/app/execute-retry.test.ts"
+- source_event: "global_process_mocking_and_diagnosability_qa.md"
+  path: "tests/app/execute-retry.test.ts"
   loc: "line 36"
   note: "The `describe('executeRetry')` block lacks an `afterEach(() => vi.restoreAllMocks())` hook."
 
 ## Change Scope
 
 - `tests/app/execute-retry.test.ts`
+
+## Constraints
+
+- Changes must be isolated to the identified scope.
+- Preserve existing functionality.
+
+## Acceptance Criteria
+
+- Tests pass and coverage is maintained or improved.
+- Addressed all concerns identified in the problem statement.
