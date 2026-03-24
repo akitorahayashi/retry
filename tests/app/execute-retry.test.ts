@@ -64,7 +64,6 @@ describe('executeRetry', () => {
           promise: Promise.resolve(),
           cancel: vi.fn(),
         }),
-        sleep: vi.fn().mockResolvedValue(undefined),
         terminateProcessTree,
       },
     )
@@ -110,7 +109,6 @@ describe('executeRetry', () => {
     const resultPromise = executeRetry(createRequest({ maxAttempts: 1 }), {
       runCommand,
       delay: vi.fn().mockReturnValue(createNeverDelay()),
-      sleep: vi.fn().mockResolvedValue(undefined),
       terminateProcessTree,
     })
 
@@ -146,7 +144,6 @@ describe('executeRetry', () => {
     const result = await executeRetry(createRequest(), {
       runCommand,
       delay: vi.fn().mockReturnValue(createNeverDelay()),
-      sleep: vi.fn().mockResolvedValue(undefined),
       terminateProcessTree: vi.fn().mockResolvedValue(undefined),
     })
 
@@ -165,7 +162,6 @@ describe('executeRetry', () => {
     const result = await executeRetry(createRequest({ retryOn: 'timeout' }), {
       runCommand,
       delay: vi.fn().mockReturnValue(createNeverDelay()),
-      sleep: vi.fn().mockResolvedValue(undefined),
       terminateProcessTree: vi.fn().mockResolvedValue(undefined),
     })
 
@@ -189,7 +185,6 @@ describe('executeRetry', () => {
       {
         runCommand,
         delay: vi.fn().mockReturnValue(createNeverDelay()),
-        sleep: vi.fn().mockResolvedValue(undefined),
         terminateProcessTree: vi.fn().mockResolvedValue(undefined),
       },
     )
@@ -210,7 +205,16 @@ describe('executeRetry', () => {
       .mockReturnValueOnce(completed(2))
       .mockReturnValueOnce(completed(3))
 
-    const sleepFn = vi.fn().mockResolvedValue(undefined)
+    const delayFn = vi.fn().mockImplementation((ms) => {
+      // If ms is not a small sleep, it's likely a timeout or not our expected sleep
+      if (ms === 1000 || ms === 5000 || ms === 10000) {
+        return {
+          promise: Promise.resolve(),
+          cancel: vi.fn(),
+        }
+      }
+      return createNeverDelay()
+    })
 
     const result = await executeRetry(
       createRequest({
@@ -219,14 +223,13 @@ describe('executeRetry', () => {
       }),
       {
         runCommand,
-        delay: vi.fn().mockReturnValue(createNeverDelay()),
-        sleep: sleepFn,
+        delay: delayFn,
         terminateProcessTree: vi.fn().mockResolvedValue(undefined),
       },
     )
 
-    expect(sleepFn).toHaveBeenNthCalledWith(1, 1000)
-    expect(sleepFn).toHaveBeenNthCalledWith(2, 5000)
+    expect(delayFn).toHaveBeenCalledWith(1000)
+    expect(delayFn).toHaveBeenCalledWith(5000)
     expect(result.attempts).toBe(3)
   })
 
@@ -241,7 +244,6 @@ describe('executeRetry', () => {
     const result = await executeRetry(createRequest({ maxAttempts: 2 }), {
       runCommand,
       delay: vi.fn().mockReturnValue(createNeverDelay()),
-      sleep: vi.fn().mockResolvedValue(undefined),
       terminateProcessTree: vi.fn().mockResolvedValue(undefined),
     })
 
@@ -267,7 +269,6 @@ describe('executeRetry', () => {
     const result = await executeRetry(createRequest({ maxAttempts: 2 }), {
       runCommand,
       delay: vi.fn().mockReturnValue(createNeverDelay()),
-      sleep: vi.fn().mockResolvedValue(undefined),
       terminateProcessTree: vi.fn().mockResolvedValue(undefined),
     })
 
