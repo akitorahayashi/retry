@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { RunningCommand } from '../../src/adapters/run-shell-command'
 import { executeRetry } from '../../src/app/execute-retry'
 import type { RetryRequest } from '../../src/action/read-inputs'
@@ -35,6 +35,10 @@ function createNeverDelay() {
 }
 
 describe('executeRetry', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('returns timeout and terminates process tree when timeout wins', async () => {
     let resolveCompletion!: (value: { exitCode: number | null }) => void
     const completionPromise = new Promise<{ exitCode: number | null }>(
