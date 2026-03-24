@@ -9,7 +9,7 @@ The repository surfaces are:
 - `action.yml`: public action contract
 - `src/`: runtime implementation
 - `tests/`: repository-owned tests aligned to runtime boundaries
-- `dist/`: committed package output used by GitHub Actions
+- `dist/`: committed package output refreshed only by release automation
 - `docs/`: usage, configuration, and architecture documentation
 - `.github/workflows/`: CI and verification workflows
 

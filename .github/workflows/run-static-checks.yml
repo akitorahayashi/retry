@@ -1,6 +1,6 @@
 # Static Checks Workflow
 #
-# Runs formatting checks, Biome lint, TypeScript typecheck, and dist verification.
+# Runs formatting checks, Biome lint, and TypeScript typecheck.
 
 name: Run Static Checks
 

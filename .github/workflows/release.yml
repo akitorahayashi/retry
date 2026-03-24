@@ -1,32 +1,44 @@
 # Release Workflow
 #
-# Builds and publishes GitHub releases on tag push.
+# Builds the distribution on main, creates release tags, and publishes a GitHub release.
 
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version in X.Y.Z format
+        required: true
+        type: string
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  resolve-version:
-    name: Resolve Release Version
+  validate-release:
+    name: Validate Release Request
     runs-on: ubuntu-latest
     outputs:
-      major-tag: ${{ steps.version.outputs.major_tag }}
+      release_tag: ${{ steps.version.outputs.release_tag }}
+      major_tag: ${{ steps.version.outputs.major_tag }}
 
     steps:
       - id: version
         name: Resolve release tags
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
         run: |
-          if [[ ! "${GITHUB_REF_NAME}" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-            echo "Expected release tag in vX.Y.Z format, got '${GITHUB_REF_NAME}'." >&2
+          if [[ "${GITHUB_REF_NAME}" != "main" ]]; then
+            echo "Release workflow must run from main, got '${GITHUB_REF_NAME}'." >&2
             exit 1
           fi
+          if [[ ! "${RELEASE_VERSION}" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "Expected release version in X.Y.Z format, got '${RELEASE_VERSION}'." >&2
+            exit 1
+          fi
+          RELEASE_TAG="v${RELEASE_VERSION}"
+          echo "release_tag=${RELEASE_TAG}" >> "${GITHUB_OUTPUT}"
           echo "major_tag=v${BASH_REMATCH[1]}" >> "${GITHUB_OUTPUT}"
 
   static-checks:
@@ -43,41 +55,69 @@ jobs:
 
   release:
     name: Publish Release
-    needs: [resolve-version, static-checks, test, verify-e2e-linux]
+    needs: [validate-release, static-checks, test, verify-e2e-linux]
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
-
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          ref: main
+          fetch-depth: 0
 
-  move-major-tag:
-    name: Move Major Tag
-    needs: [resolve-version, release]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    concurrency:
-      group: move-major-tag-${{ needs.resolve-version.outputs.major-tag }}
-      cancel-in-progress: true
+      - name: Setup Development Environment
+        uses: ./.github/actions/setup
 
-    steps:
-      - name: Checkout Tagged Revision
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ github.ref }}
+      - name: Build Action Distribution
+        run: npm run package
 
-      - name: Update moving major tag
+      - name: Commit Distribution
+        id: dist
         env:
-          MAJOR_TAG: ${{ needs.resolve-version.outputs.major-tag }}
+          RELEASE_TAG: ${{ needs.validate-release.outputs.release_tag }}
         run: |
+          if git diff --quiet -- dist; then
+            echo "commit_sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git tag --force --annotate "${MAJOR_TAG}" --message "Update ${MAJOR_TAG} to ${GITHUB_REF_NAME}" "${GITHUB_SHA}"
+          git add dist
+          git commit -m "Release ${RELEASE_TAG}"
+          git push origin HEAD:main
+          echo "commit_sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
+
+      - name: Create Release Tags
+        env:
+          RELEASE_TAG: ${{ needs.validate-release.outputs.release_tag }}
+          MAJOR_TAG: ${{ needs.validate-release.outputs.major_tag }}
+          COMMIT_SHA: ${{ steps.dist.outputs.commit_sha }}
+        run: |
+          if git rev-parse -q --verify "refs/tags/${RELEASE_TAG}" >/dev/null; then
+            echo "Release tag '${RELEASE_TAG}' already exists." >&2
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag --annotate "${RELEASE_TAG}" --message "Release ${RELEASE_TAG}" "${COMMIT_SHA}"
+          git tag --force --annotate "${MAJOR_TAG}" --message "Update ${MAJOR_TAG} to ${RELEASE_TAG}" "${COMMIT_SHA}"
+          git push origin "refs/tags/${RELEASE_TAG}"
           git push origin "refs/tags/${MAJOR_TAG}" --force
+
+      - id: prepare-release
+        name: Prepare GitHub Release
+        uses: akitorahayashi/gh-release@v1
+        with:
+          mode: prepare
+          token: ${{ github.token }}
+          tag: ${{ needs.validate-release.outputs.release_tag }}
+          create: true
+          generate_notes: true
+
+      - name: Publish GitHub Release
+        uses: akitorahayashi/gh-release@v1
+        with:
+          mode: publish
+          token: ${{ github.token }}
+          release_id: ${{ steps.prepare-release.outputs.release_id }}
+          publish: true

@@ -12,30 +12,20 @@ help:
 setup:
     npm ci
 
-# Apply formatter, safe lint fixes, and refresh committed dist
+# Apply formatter and safe lint fixes
 fix:
     npm run format
     npm run lint:fix
-    npm run package
 
-# Run formatting checks, lint, typecheck, and dist verification
+# Run formatting checks, lint, and typecheck
 check:
     npm run format:check
     npm run lint
     npm run typecheck
-    npm run verify:dist
 
 # Run test suite
 test:
     npm run test
-
-# Build committed GitHub Action distribution
-package:
-    npm run package
-
-# Verify committed dist output matches generated output
-verify-dist:
-    npm run verify:dist
 
 # Remove repository-local generated artifacts
 clean:

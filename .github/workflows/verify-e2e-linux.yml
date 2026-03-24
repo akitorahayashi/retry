@@ -15,6 +15,12 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v5
 
+      - name: Setup Development Environment
+        uses: ./.github/actions/setup
+
+      - name: Build Action Distribution
+        run: npm run package
+
       - name: Retry Until Third Attempt
         id: retry-success
         uses: ./

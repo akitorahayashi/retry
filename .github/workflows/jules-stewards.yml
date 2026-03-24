@@ -60,7 +60,7 @@ jobs:
         uses: asterismhq/setup-jlo@v1
         with:
           token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '23.3.0'
+          version: '24.1.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Resolve stewards plan
@@ -99,7 +99,7 @@ jobs:
     uses: ./.github/workflows/jules-optimizers.yml
     secrets: inherit
     with:
-      entry_point: narrator
+      entry_point: observers
       wait_minutes: ${{ fromJSON(github.event.inputs.wait_minutes || '30') }}
       mock: ${{ github.event.inputs.mock == 'true' }}
 

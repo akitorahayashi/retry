@@ -1,35 +1,37 @@
 # jlo execution configuration
 
-[run]
-jlo_target_branch = "main"
-jules_worker_branch = "jules"
-
 [workflow]
 runner_mode = "remote"
-wait_minutes_default = 30
 bot_name = "aria"
 bot_email = "aria67323@gmail.com"
-jules_api_worker_max_parallel = 10
+jules_api_worker_max_parallel = 15
 
 [schedule]
 cron = ["0 19 * * *"]
-skip_narrator_on_schedule = true
 
-[workflow.layers.innovators]
+[run]
+jlo_target_branch = "main"
+jules_worker_branch = "jules"
+wait_minutes_default = 30
+
+[layers.implementer]
+max_tasks_per_run = 15
+
+[layers.merger]
+requirement_file_limit = 15
+
+[layers.innovators]
 roles = [
   { name = "leverage_architect", enabled = true, proposal_file_limit = 3 },
 ]
 
-[workflow.layers.observers]
+[layers.observers]
 roles = [
   { name = "consistency", enabled = true, event_file_limit = 3, requirement_file_limit = 3 },
   { name = "taxonomy", enabled = true, event_file_limit = 3, requirement_file_limit = 3 },
   { name = "data_arch", enabled = true, event_file_limit = 3, requirement_file_limit = 3 },
-  { name = "qa", enabled = true, event_file_limit = 3, requirement_file_limit = 3 },
-  { name = "cov", enabled = true, event_file_limit = 3, requirement_file_limit = 3 },
+  { name = "qa", enabled = true, tags = ["testing"], event_file_limit = 3, requirement_file_limit = 3 },
+  { name = "cov", enabled = true, tags = ["testing"], event_file_limit = 3, requirement_file_limit = 3 },
   { name = "typescripter", enabled = true, event_file_limit = 3, requirement_file_limit = 3 },
-  { name = "devops", enabled = true, event_file_limit = 3, requirement_file_limit = 3 },
 ]
 
-[workflow.layers.implementer]
-max_tasks_per_run = 10
