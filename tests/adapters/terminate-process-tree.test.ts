@@ -4,13 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { terminateProcessTree } from '../../src/adapters/terminate-process-tree'
 
 describe('terminateProcessTree', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-  })
-
   afterEach(() => {
     vi.restoreAllMocks()
-    vi.useRealTimers()
   })
 
   it('terminates long-running process by pid', async () => {
@@ -33,9 +28,7 @@ describe('terminateProcessTree', () => {
     })
 
     try {
-      const terminatePromise = terminateProcessTree(pid, 1)
-
-      await vi.advanceTimersByTimeAsync(1000)
+      const terminatePromise = terminateProcessTree(pid, 0.05)
 
       await terminatePromise
       await closePromise
@@ -66,16 +59,15 @@ describe('terminateProcessTree', () => {
 
       const pid = child.pid as number
 
-      await vi.advanceTimersByTimeAsync(100)
+      // Wait a moment for process to actually start before terminating
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       const closePromise = new Promise<void>((resolve) => {
         child.on('close', () => resolve())
       })
 
       try {
-        const terminatePromise = terminateProcessTree(pid, 2)
-
-        await vi.advanceTimersByTimeAsync(2000)
+        const terminatePromise = terminateProcessTree(pid, 0.05)
 
         await terminatePromise
         await closePromise
@@ -122,9 +114,7 @@ describe('terminateProcessTree', () => {
       })
 
       try {
-        const terminatePromise = terminateProcessTree(pid, 1)
-
-        await vi.advanceTimersByTimeAsync(1000)
+        const terminatePromise = terminateProcessTree(pid, 0.05)
 
         await terminatePromise
         await closePromise
@@ -171,9 +161,7 @@ describe('terminateProcessTree', () => {
         })
 
       try {
-        const terminatePromise = terminateProcessTree(pid, 1)
-
-        await vi.advanceTimersByTimeAsync(1000)
+        const terminatePromise = terminateProcessTree(pid, 0.05)
 
         await terminatePromise
 
