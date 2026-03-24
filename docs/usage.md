@@ -40,7 +40,7 @@ The output surface is:
     max_attempts: '5'
     timeout_seconds: '45'
     retry_on: timeout
-    retry_delay_schedule_seconds: 1,2,5,10
+    retry_delay_schedule_seconds: '1,2,5,10'
     termination_grace_seconds: '3'
 ```
 
