@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import type { RetryOn, RetryPolicy } from '../../domain/policy'
+import type { RetryPolicy } from '../../domain/policy'
 import { shouldRetryFailure } from '../../domain/policy'
 import type { AttemptResult, FinalResult } from '../../domain/result'
 import { toFinalResult } from '../../domain/result'
@@ -13,52 +13,40 @@ import {
 } from './execute-retry-dependencies'
 import { executeAttempt } from './execute-attempt'
 import { formatExitCode } from './format-exit-code'
+import type { CommandExecution } from '../../domain/command'
 
-export interface ExecuteRetryParams {
-  command: string
+export interface ExecuteRetryRequest {
+  command: CommandExecution
+  policy: RetryPolicy
+  schedule: RetrySchedule
   maxAttempts: number
-  shell: string
-  timeoutSeconds?: number
-  retryDelaySeconds: number
-  retryDelayScheduleSeconds: readonly number[]
-  retryOn: RetryOn
-  retryOnExitCodes?: ReadonlySet<number>
-  terminationGraceSeconds: number
 }
 
 export async function executeRetry(
-  params: ExecuteRetryParams,
+  request: ExecuteRetryRequest,
   dependencies: ExecuteRetryDependencies = executeRetryDependencies,
 ): Promise<FinalResult> {
-  if (!Number.isInteger(params.maxAttempts) || params.maxAttempts <= 0) {
+  if (!Number.isInteger(request.maxAttempts) || request.maxAttempts <= 0) {
     throw new Error(
-      `ExecuteRetryParams.maxAttempts must be a positive integer, but received: ${params.maxAttempts}`,
+      `ExecuteRetryRequest.maxAttempts must be a positive integer, but received: ${request.maxAttempts}`,
     )
   }
 
-  const policy: RetryPolicy = {
-    retryOn: params.retryOn,
-    retryOnExitCodes: params.retryOnExitCodes,
-  }
-
-  const schedule: RetrySchedule = {
-    retryDelaySeconds: params.retryDelaySeconds,
-    retryDelayScheduleSeconds: params.retryDelayScheduleSeconds,
-  }
+  const { policy, schedule } = request
 
   let finalAttempt: AttemptResult | undefined
 
-  for (let attempt = 1; attempt <= params.maxAttempts; attempt += 1) {
+  for (let attempt = 1; attempt <= request.maxAttempts; attempt += 1) {
     finalAttempt = await core.group(
-      `Attempt ${attempt}/${params.maxAttempts}`,
-      async () => executeAttempt(params, attempt, dependencies),
+      `Attempt ${attempt}/${request.maxAttempts}`,
+      async () => executeAttempt(request.command, attempt, dependencies),
     )
 
     if (finalAttempt.outcome === 'success') {
       return toFinalResult(finalAttempt)
     }
 
-    if (attempt >= params.maxAttempts) {
+    if (attempt >= request.maxAttempts) {
       return toFinalResult(finalAttempt)
     }
 
