@@ -4,9 +4,7 @@ This directory is the central documentation index for `retry`.
 
 ## Usage
 
-- [Usage](usage.md): workflow examples, retry outputs, and local verification entrypoints
-
-The action usage describes retry policy inputs and final execution outputs.
+- [Usage](usage.md): standard and timeout-only workflow examples
 
 ## Architecture
 
