@@ -32,16 +32,18 @@ export function runShellCommand(
     stdout += chunk.toString()
     try {
       process.stdout.write(chunk)
-    } catch {
-      // Ignore stdout forwarding failures so command completion can still resolve.
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      console.warn(`[runShellCommand] Failed to write to stdout: ${msg}`)
     }
   })
 
   child.stderr?.on('data', (chunk) => {
     try {
       process.stderr.write(chunk)
-    } catch {
-      // Ignore stderr forwarding failures so command completion can still resolve.
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      console.warn(`[runShellCommand] Failed to write to stderr: ${msg}`)
     }
   })
 

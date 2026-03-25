@@ -11,11 +11,10 @@ describe('emitOutputs', () => {
     const setOutput = vi.spyOn(core, 'setOutput').mockImplementation(() => {})
 
     emitOutputs({
-      attempts: 2,
-      finalExitCode: 0,
-      finalOutcome: 'success',
-      succeeded: true,
-      finalStdout: '{"ok":true}',
+      attempt: 2,
+      exitCode: 0,
+      outcome: 'success',
+      stdout: '{"ok":true}',
     })
 
     expect(setOutput).toHaveBeenCalledWith('attempts', 2)

@@ -5,11 +5,12 @@ import { terminateProcessTree } from '../../src/adapters/terminate-process-tree'
 
 describe('terminateProcessTree', () => {
   // Grace period constants for test clarity
-  const GRACE_PERIOD_SECONDS = 0.05
+  const GRACE_PERIOD_SECONDS = 5
   const GRACE_PERIOD_MS = GRACE_PERIOD_SECONDS * 1000
 
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.useRealTimers()
   })
 
   it('terminates long-running process by pid', async () => {
@@ -32,7 +33,9 @@ describe('terminateProcessTree', () => {
     })
 
     try {
+      vi.useFakeTimers()
       const terminatePromise = terminateProcessTree(pid, GRACE_PERIOD_SECONDS)
+      await vi.advanceTimersByTimeAsync(GRACE_PERIOD_MS)
 
       await terminatePromise
       await closePromise
@@ -56,22 +59,23 @@ describe('terminateProcessTree', () => {
 
       const child = spawn('bash', [fixture], {
         detached: true,
-        stdio: 'ignore',
+        stdio: ['ignore', 'pipe', 'ignore'],
       })
 
       expect(typeof child.pid).toBe('number')
 
       const pid = child.pid as number
 
-      // Wait a moment for process to actually start before terminating
-      await new Promise((resolve) => setTimeout(resolve, GRACE_PERIOD_MS))
+      await waitForReadySignal(child)
 
       const closePromise = new Promise<void>((resolve) => {
         child.on('close', () => resolve())
       })
 
       try {
+        vi.useFakeTimers()
         const terminatePromise = terminateProcessTree(pid, GRACE_PERIOD_SECONDS)
+        await vi.advanceTimersByTimeAsync(GRACE_PERIOD_MS)
 
         await terminatePromise
         await closePromise
@@ -118,7 +122,9 @@ describe('terminateProcessTree', () => {
       })
 
       try {
+        vi.useFakeTimers()
         const terminatePromise = terminateProcessTree(pid, GRACE_PERIOD_SECONDS)
+        await vi.advanceTimersByTimeAsync(GRACE_PERIOD_MS)
 
         await terminatePromise
         await closePromise
@@ -165,7 +171,9 @@ describe('terminateProcessTree', () => {
         })
 
       try {
+        vi.useFakeTimers()
         const terminatePromise = terminateProcessTree(pid, GRACE_PERIOD_SECONDS)
+        await vi.advanceTimersByTimeAsync(GRACE_PERIOD_MS)
 
         await terminatePromise
 
@@ -180,6 +188,22 @@ describe('terminateProcessTree', () => {
       }
     })
   })
+
+  describe('unexpected errors', () => {
+    it('throws unexpected errors during sendSignal', async () => {
+      const killSpy = vi
+        .spyOn(process, 'kill')
+        .mockImplementation((_targetPid, _signal) => {
+          throw new Error('EACCES: permission denied')
+        })
+
+      await expect(
+        terminateProcessTree(100, GRACE_PERIOD_SECONDS),
+      ).rejects.toThrow('EACCES: permission denied')
+
+      expect(killSpy).toHaveBeenCalled()
+    })
+  })
 })
 
 function isAlive(pid: number): boolean {
@@ -189,4 +213,53 @@ function isAlive(pid: number): boolean {
   } catch {
     return false
   }
+}
+
+function waitForReadySignal(
+  child: ReturnType<typeof spawn>,
+  signal = 'READY',
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const stdout = child.stdout
+    if (!stdout) {
+      reject(new Error('Child process stdout is not available'))
+      return
+    }
+
+    const onData = (chunk: Buffer | string) => {
+      const output = typeof chunk === 'string' ? chunk : chunk.toString('utf8')
+      if (!output.includes(signal)) {
+        return
+      }
+      cleanup()
+      resolve()
+    }
+
+    const onError = (error: Error) => {
+      cleanup()
+      reject(error)
+    }
+
+    const onClose = (
+      code: number | null,
+      closedSignal: NodeJS.Signals | null,
+    ) => {
+      cleanup()
+      reject(
+        new Error(
+          `Child process exited before readiness signal (code=${String(code)}, signal=${String(closedSignal)})`,
+        ),
+      )
+    }
+
+    const cleanup = () => {
+      stdout.off('data', onData)
+      child.off('error', onError)
+      child.off('close', onClose)
+    }
+
+    stdout.on('data', onData)
+    child.on('error', onError)
+    child.on('close', onClose)
+  })
 }

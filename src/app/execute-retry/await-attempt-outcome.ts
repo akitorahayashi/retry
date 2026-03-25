@@ -12,11 +12,10 @@ interface AwaitAttemptOutcomeDependencies {
   terminateProcessTree: (pid: number, graceSeconds: number) => Promise<void>
 }
 
-interface AttemptExecutionOutcome {
-  outcome: AttemptOutcome
-  exitCode: number | null
-  stdout: string
-}
+export type ExecutionResult =
+  | { outcome: 'success'; exitCode: number; stdout: string }
+  | { outcome: 'error'; exitCode: number | null; stdout: string }
+  | { outcome: 'timeout'; exitCode: null; stdout: string }
 
 type RaceOutcome =
   | { type: 'completion'; exitCode: number | null; stdout: string }
@@ -27,7 +26,7 @@ export async function awaitAttemptOutcome(
   attempt: number,
   runningCommand: RunningCommand,
   dependencies: AwaitAttemptOutcomeDependencies,
-): Promise<AttemptExecutionOutcome> {
+): Promise<ExecutionResult> {
   const completionPromise: Promise<RaceOutcome> =
     runningCommand.completion.then((completion) => ({
       type: 'completion',
@@ -40,8 +39,15 @@ export async function awaitAttemptOutcome(
     if (completion.type === 'timeout') {
       throw new Error('Unexpected timeout when timeout is undefined')
     }
+    if (completion.exitCode === 0) {
+      return {
+        outcome: 'success',
+        exitCode: completion.exitCode,
+        stdout: completion.stdout,
+      }
+    }
     return {
-      outcome: completion.exitCode === 0 ? 'success' : 'error',
+      outcome: 'error',
       exitCode: completion.exitCode,
       stdout: completion.stdout,
     }
@@ -56,8 +62,15 @@ export async function awaitAttemptOutcome(
     ])
 
     if (result.type === 'completion') {
+      if (result.exitCode === 0) {
+        return {
+          outcome: 'success',
+          exitCode: result.exitCode,
+          stdout: result.stdout,
+        }
+      }
       return {
-        outcome: result.exitCode === 0 ? 'success' : 'error',
+        outcome: 'error',
         exitCode: result.exitCode,
         stdout: result.stdout,
       }
@@ -98,9 +111,11 @@ export async function awaitAttemptOutcome(
         }
       }
 
+      // For timeout outcomes, the exit code from a terminated process isn't
+      // representative of the command's execution, so we always use null.
       return {
         outcome: 'timeout',
-        exitCode: finalCompletion.exitCode,
+        exitCode: null,
         stdout: finalCompletion.stdout,
       }
     } finally {
