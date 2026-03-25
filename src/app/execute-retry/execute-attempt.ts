@@ -45,16 +45,6 @@ export async function executeAttempt(
       exitCode: result.exitCode,
       stdout: result.stdout,
     }
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error)
-    core.error(`Attempt ${attempt} failed to execute command: ${message}`)
-
-    return {
-      attempt,
-      outcome: 'error',
-      exitCode: null,
-      stdout: '',
-    }
   } finally {
     cleanupSignalHandlers()
   }
