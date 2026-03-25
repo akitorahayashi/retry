@@ -2,9 +2,9 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { executeAttempt } from '../../src/app/execute-retry/execute-attempt'
 import type { ExecuteRetryDependencies } from '../../src/app/execute-retry/execute-retry-dependencies'
 import type { CommandSpec } from '../../src/domain/command'
+import type { ExecutionResult } from '../../src/app/execute-retry/await-attempt-outcome'
 import * as awaitAttemptOutcomeModule from '../../src/app/execute-retry/await-attempt-outcome'
 
-// Mock awaitAttemptOutcome to simulate a success but with a null exit code
 vi.mock(
   '../../src/app/execute-retry/await-attempt-outcome',
   async (importOriginal) => {
@@ -21,7 +21,7 @@ describe('executeAttempt', () => {
     vi.clearAllMocks()
   })
 
-  it('throws an error when attempt succeeds but exitCode is null', async () => {
+  it('coerces impossible success-with-null-exitCode into an error outcome', async () => {
     const command: CommandSpec = {
       command: 'echo "test"',
       shell: 'bash',
@@ -43,10 +43,13 @@ describe('executeAttempt', () => {
       outcome: 'success',
       exitCode: null,
       stdout: '',
-    })
+    } as unknown as ExecutionResult)
 
-    await expect(executeAttempt(command, 1, dependencies)).rejects.toThrow(
-      'Successful attempt must include a numeric exit code.',
-    )
+    await expect(executeAttempt(command, 1, dependencies)).resolves.toEqual({
+      attempt: 1,
+      outcome: 'error',
+      exitCode: null,
+      stdout: '',
+    })
   })
 })

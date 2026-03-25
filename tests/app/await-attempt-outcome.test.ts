@@ -236,7 +236,7 @@ describe('awaitAttemptOutcome', () => {
 
     expect(result).toEqual({
       outcome: 'timeout',
-      exitCode: 143,
+      exitCode: null,
       stdout: 'partial\n',
     })
     expect(cancelInitialTimeout).toHaveBeenCalled()
