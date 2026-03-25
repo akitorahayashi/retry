@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 import type { RunningCommand } from '../../adapters/run-shell-command'
-import type { CommandExecution } from '../../domain/command'
+import type { CommandSpec } from '../../domain/command'
 import type { AttemptOutcome } from '../../domain/policy'
 import { formatExitCode } from './format-exit-code'
 
@@ -18,20 +18,28 @@ interface AttemptExecutionOutcome {
   stdout: string
 }
 
+type RaceOutcome =
+  | { type: 'completion'; exitCode: number | null; stdout: string }
+  | { type: 'timeout' }
+
 export async function awaitAttemptOutcome(
-  command: CommandExecution,
+  command: CommandSpec,
   attempt: number,
   runningCommand: RunningCommand,
   dependencies: AwaitAttemptOutcomeDependencies,
 ): Promise<AttemptExecutionOutcome> {
-  const completionPromise = runningCommand.completion.then((completion) => ({
-    type: 'completion' as const,
-    exitCode: completion.exitCode,
-    stdout: completion.stdout,
-  }))
+  const completionPromise: Promise<RaceOutcome> =
+    runningCommand.completion.then((completion) => ({
+      type: 'completion',
+      exitCode: completion.exitCode,
+      stdout: completion.stdout,
+    }))
 
   if (command.timeoutSeconds === undefined) {
     const completion = await completionPromise
+    if (completion.type === 'timeout') {
+      throw new Error('Unexpected timeout when timeout is undefined')
+    }
     return {
       outcome: completion.exitCode === 0 ? 'success' : 'error',
       exitCode: completion.exitCode,
@@ -42,9 +50,9 @@ export async function awaitAttemptOutcome(
   const timeout = dependencies.delay(command.timeoutSeconds * 1000)
 
   try {
-    const result = await Promise.race([
+    const result: RaceOutcome = await Promise.race([
       completionPromise,
-      timeout.promise.then(() => ({ type: 'timeout' as const })),
+      timeout.promise.then((): RaceOutcome => ({ type: 'timeout' })),
     ])
 
     if (result.type === 'completion') {
@@ -59,27 +67,24 @@ export async function awaitAttemptOutcome(
       `Attempt ${attempt} timed out after ${command.timeoutSeconds}s.`,
     )
 
-    try {
-      await dependencies.terminateProcessTree(
-        runningCommand.pid,
-        command.terminationGraceSeconds,
-      )
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error)
-      core.error(
-        `Failed timeout termination pid=${runningCommand.pid} grace=${command.terminationGraceSeconds}s: ${message}`,
-      )
-    }
+    await dependencies.terminateProcessTree(
+      runningCommand.pid,
+      command.terminationGraceSeconds,
+    )
 
     const terminationTimeout = dependencies.delay(5000)
 
     try {
-      const finalCompletion = await Promise.race([
-        runningCommand.completion.then((res) => ({
-          type: 'completion' as const,
-          ...res,
-        })),
-        terminationTimeout.promise.then(() => ({ type: 'timeout' as const })),
+      const finalCompletion: RaceOutcome = await Promise.race([
+        runningCommand.completion.then(
+          (res): RaceOutcome => ({
+            type: 'completion',
+            ...res,
+          }),
+        ),
+        terminationTimeout.promise.then(
+          (): RaceOutcome => ({ type: 'timeout' }),
+        ),
       ])
 
       if (finalCompletion.type === 'timeout') {

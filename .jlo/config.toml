@@ -33,5 +33,6 @@ roles = [
   { name = "qa", enabled = true, tags = ["testing"], event_file_limit = 3, requirement_file_limit = 3 },
   { name = "cov", enabled = true, tags = ["testing"], event_file_limit = 3, requirement_file_limit = 3 },
   { name = "typescripter", enabled = true, event_file_limit = 3, requirement_file_limit = 3 },
+  { name = "librarian", enabled = true, tags = [], event_file_limit = 3, requirement_file_limit = 3 },
 ]
 
