@@ -13,6 +13,7 @@
     "format": "biome format --write .",
     "format:check": "biome check --formatter-enabled=true --linter-enabled=false --assist-enabled=false .",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "package": "ncc build src/index.ts -o dist --license licenses.txt"
   },
