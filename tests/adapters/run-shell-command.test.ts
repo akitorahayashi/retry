@@ -1,8 +1,10 @@
 import { resolve } from 'node:path'
 import { EventEmitter } from 'node:events'
-import type { spawn } from 'node:child_process'
 import { describe, expect, it, vi } from 'vitest'
-import { runShellCommand } from '../../src/adapters/run-shell-command'
+import {
+  runShellCommand,
+  type SpawnFn,
+} from '../../src/adapters/run-shell-command'
 
 describe('runShellCommand', () => {
   it('returns zero exit code when command succeeds', async () => {
@@ -32,7 +34,7 @@ describe('runShellCommand', () => {
   })
 
   it('throws an error if the process fails to start and has no pid', () => {
-    const mockSpawn = vi.fn<typeof spawn>().mockImplementationOnce(() => {
+    const mockSpawn = vi.fn<SpawnFn>().mockImplementationOnce(() => {
       // biome-ignore lint/suspicious/noExplicitAny: mocking child process return
       return { pid: undefined } as any
     })
@@ -44,7 +46,7 @@ describe('runShellCommand', () => {
 
   it('throws an error if spawn itself throws', () => {
     const spawnError = new Error('spawn failed')
-    const mockSpawn = vi.fn<typeof spawn>().mockImplementationOnce(() => {
+    const mockSpawn = vi.fn<SpawnFn>().mockImplementationOnce(() => {
       throw spawnError
     })
 
@@ -60,9 +62,7 @@ describe('runShellCommand', () => {
     emitter.stdout = new EventEmitter()
     emitter.stderr = new EventEmitter()
 
-    const mockSpawn = vi
-      .fn<typeof spawn>()
-      .mockImplementationOnce(() => emitter)
+    const mockSpawn = vi.fn<SpawnFn>().mockImplementationOnce(() => emitter)
 
     const running = runShellCommand('echo test', 'bash', mockSpawn)
 
