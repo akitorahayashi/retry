@@ -140,7 +140,9 @@ describe('readInputs', () => {
       }
     })
 
-    expect(() => readInputs()).toThrow("Input 'max_attempts' must be an integer.")
+    expect(() => readInputs()).toThrow(
+      "Input 'max_attempts' must be an integer.",
+    )
   })
 
   it.each([
@@ -152,7 +154,10 @@ describe('readInputs', () => {
     { token: 'true', expected: true },
     { token: 'yes', expected: true },
     { token: 'on', expected: true },
-  ])('normalizes boolean token "$token" to $expected', ({ token, expected }) => {
+  ])('normalizes boolean token "$token" to $expected', ({
+    token,
+    expected,
+  }) => {
     mockedGetInput.mockImplementation((name: string) => {
       switch (name) {
         case 'command':
