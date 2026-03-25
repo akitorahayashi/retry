@@ -28,13 +28,12 @@ export async function awaitAttemptOutcome(
   runningCommand: RunningCommand,
   dependencies: AwaitAttemptOutcomeDependencies,
 ): Promise<AttemptExecutionOutcome> {
-  const completionPromise: Promise<RaceOutcome> = runningCommand.completion.then(
-    (completion) => ({
+  const completionPromise: Promise<RaceOutcome> =
+    runningCommand.completion.then((completion) => ({
       type: 'completion',
       exitCode: completion.exitCode,
       stdout: completion.stdout,
-    }),
-  )
+    }))
 
   if (command.timeoutSeconds === undefined) {
     const completion = await completionPromise
@@ -83,7 +82,9 @@ export async function awaitAttemptOutcome(
             ...res,
           }),
         ),
-        terminationTimeout.promise.then((): RaceOutcome => ({ type: 'timeout' })),
+        terminationTimeout.promise.then(
+          (): RaceOutcome => ({ type: 'timeout' }),
+        ),
       ])
 
       if (finalCompletion.type === 'timeout') {
