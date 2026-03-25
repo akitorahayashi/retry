@@ -162,6 +162,23 @@ describe('readInputs', () => {
     expect(() => readInputs()).toThrow(
       "Input 'timeout_seconds' must be an integer.",
     )
+
+    mockedGetInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'command':
+          return 'echo ok'
+        case 'max_attempts':
+          return '3'
+        case 'retry_delay_seconds':
+          return '1.5'
+        default:
+          return ''
+      }
+    })
+
+    expect(() => readInputs()).toThrow(
+      "Input 'retry_delay_seconds' must be an integer.",
+    )
   })
 
   it.each([
