@@ -46,7 +46,7 @@ export async function executeRetry(
       return toFinalResult(finalAttempt)
     }
 
-    if (attempt >= request.maxAttempts) {
+    if (attempt === request.maxAttempts) {
       return toFinalResult(finalAttempt)
     }
 
