@@ -180,6 +180,22 @@ describe('terminateProcessTree', () => {
       }
     })
   })
+
+  describe('unexpected errors', () => {
+    it('throws unexpected errors during sendSignal', async () => {
+      const killSpy = vi
+        .spyOn(process, 'kill')
+        .mockImplementation((_targetPid, _signal) => {
+          throw new Error('EACCES: permission denied')
+        })
+
+      await expect(
+        terminateProcessTree(100, GRACE_PERIOD_SECONDS),
+      ).rejects.toThrow('EACCES: permission denied')
+
+      expect(killSpy).toHaveBeenCalled()
+    })
+  })
 })
 
 function isAlive(pid: number): boolean {

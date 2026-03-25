@@ -28,44 +28,59 @@ export async function executeAttempt(
   })
 
   try {
-    runningCommand = dependencies.runCommand(command.command, command.shell)
+    try {
+      runningCommand = dependencies.runCommand(command.command, command.shell)
 
-    const result = await awaitAttemptOutcome(
-      command,
-      attempt,
-      runningCommand,
-      dependencies,
-    )
+      const result = await awaitAttemptOutcome(
+        command,
+        attempt,
+        runningCommand,
+        dependencies,
+      )
 
-    logAttemptCompletion(attempt, result.outcome, result.exitCode)
+      logAttemptCompletion(attempt, result.outcome, result.exitCode)
 
-    if (result.outcome === 'success') {
-      if (result.exitCode === null) {
-        throw new Error('Successful attempt must include a numeric exit code.')
+      if (result.outcome === 'success') {
+        if (result.exitCode === null) {
+          throw new Error(
+            'Successful attempt must include a numeric exit code.',
+          )
+        }
+
+        return {
+          attempt,
+          outcome: 'success',
+          exitCode: result.exitCode,
+          stdout: result.stdout,
+        }
+      }
+
+      if (result.outcome === 'timeout') {
+        return {
+          attempt,
+          outcome: 'timeout',
+          exitCode: null,
+          stdout: result.stdout,
+        }
       }
 
       return {
         attempt,
-        outcome: 'success',
+        outcome: 'error',
         exitCode: result.exitCode,
         stdout: result.stdout,
       }
-    }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error)
+      core.error(`Attempt ${attempt} failed with error: ${errorMessage}`)
 
-    if (result.outcome === 'timeout') {
       return {
         attempt,
-        outcome: 'timeout',
+        outcome: 'error',
         exitCode: null,
-        stdout: result.stdout,
+        stdout: '',
       }
-    }
-
-    return {
-      attempt,
-      outcome: 'error',
-      exitCode: result.exitCode,
-      stdout: result.stdout,
     }
   } finally {
     cleanupSignalHandlers()
