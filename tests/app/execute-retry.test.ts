@@ -228,8 +228,8 @@ describe('executeRetry', () => {
       },
     )
 
-    expect(delayFn).toHaveBeenCalledWith(1000)
-    expect(delayFn).toHaveBeenCalledWith(5000)
+    expect(delayFn).toHaveBeenNthCalledWith(1, 1000)
+    expect(delayFn).toHaveBeenNthCalledWith(2, 5000)
     expect(result.attempts).toBe(3)
   })
 
