@@ -15,6 +15,7 @@ describe('awaitAttemptOutcome', () => {
   it('returns success when process completes without timeout', async () => {
     const command: CommandSpec = {
       command: 'echo "test"',
+      shell: 'bash',
       timeoutSeconds: undefined,
       terminationGraceSeconds: 5,
     }
@@ -41,6 +42,7 @@ describe('awaitAttemptOutcome', () => {
   it('returns error when process completes with non-zero exit code without timeout', async () => {
     const command: CommandSpec = {
       command: 'exit 1',
+      shell: 'bash',
       timeoutSeconds: undefined,
       terminationGraceSeconds: 5,
     }
@@ -71,6 +73,7 @@ describe('awaitAttemptOutcome', () => {
   it('returns success when process completes before timeout', async () => {
     const command: CommandSpec = {
       command: 'echo "test"',
+      shell: 'bash',
       timeoutSeconds: 10,
       terminationGraceSeconds: 5,
     }
@@ -106,10 +109,14 @@ describe('awaitAttemptOutcome', () => {
   it('terminates process tree when timeout is reached', async () => {
     const command: CommandSpec = {
       command: 'sleep 10',
+      shell: 'bash',
       timeoutSeconds: 1,
       terminationGraceSeconds: 5,
     }
-    let resolveCompletion: (value: { exitCode: number; stdout: string }) => void
+    let resolveCompletion!: (value: {
+      exitCode: number
+      stdout: string
+    }) => void
     const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
       (resolve) => {
         resolveCompletion = resolve
@@ -121,7 +128,7 @@ describe('awaitAttemptOutcome', () => {
       completion: completionPromise,
     }
 
-    let resolveInitialTimeout: () => void
+    let resolveInitialTimeout!: () => void
     const initialTimeoutPromise = new Promise<void>((resolve) => {
       resolveInitialTimeout = resolve
     })
@@ -153,7 +160,7 @@ describe('awaitAttemptOutcome', () => {
     )
 
     // Trigger initial timeout
-    resolveInitialTimeout?.()
+    resolveInitialTimeout()
 
     // Allow event loop to process
     await new Promise(process.nextTick)
@@ -161,7 +168,7 @@ describe('awaitAttemptOutcome', () => {
     expect(dependencies.terminateProcessTree).toHaveBeenCalledWith(1234, 5)
 
     // Resolve the process completion
-    resolveCompletion?.({ exitCode: 143, stdout: 'partial\n' }) // Simulate exit due to SIGTERM
+    resolveCompletion({ exitCode: 143, stdout: 'partial\n' }) // Simulate exit due to SIGTERM
 
     const result = await attemptPromise
 
@@ -177,11 +184,15 @@ describe('awaitAttemptOutcome', () => {
   it('logs error when terminateProcessTree fails and continues to wait for completion', async () => {
     const command: CommandSpec = {
       command: 'sleep 10',
+      shell: 'bash',
       timeoutSeconds: 1,
       terminationGraceSeconds: 5,
     }
 
-    let resolveCompletion: (value: { exitCode: number; stdout: string }) => void
+    let resolveCompletion!: (value: {
+      exitCode: number
+      stdout: string
+    }) => void
     const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
       (resolve) => {
         resolveCompletion = resolve
@@ -221,7 +232,7 @@ describe('awaitAttemptOutcome', () => {
     // Terminate tree failed, but we still expect to wait for the completion
     expect(dependencies.terminateProcessTree).toHaveBeenCalled()
 
-    resolveCompletion?.({ exitCode: 1, stdout: 'failed\n' })
+    resolveCompletion({ exitCode: 1, stdout: 'failed\n' })
 
     const result = await attemptPromise
     expect(result).toEqual({
@@ -234,11 +245,15 @@ describe('awaitAttemptOutcome', () => {
   it('logs raw non-Error object when terminateProcessTree fails', async () => {
     const command: CommandSpec = {
       command: 'sleep 10',
+      shell: 'bash',
       timeoutSeconds: 1,
       terminationGraceSeconds: 5,
     }
 
-    let resolveCompletion: (value: { exitCode: number; stdout: string }) => void
+    let resolveCompletion!: (value: {
+      exitCode: number
+      stdout: string
+    }) => void
     const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
       (resolve) => {
         resolveCompletion = resolve
@@ -275,7 +290,7 @@ describe('awaitAttemptOutcome', () => {
     )
     await new Promise(process.nextTick)
 
-    resolveCompletion?.({ exitCode: 1, stdout: 'failed\n' })
+    resolveCompletion({ exitCode: 1, stdout: 'failed\n' })
 
     await attemptPromise
 
@@ -287,6 +302,7 @@ describe('awaitAttemptOutcome', () => {
   it('returns a safe outcome without exit code if termination fallback timeout triggers', async () => {
     const command: CommandSpec = {
       command: 'sleep 10',
+      shell: 'bash',
       timeoutSeconds: 1,
       terminationGraceSeconds: 5,
     }
