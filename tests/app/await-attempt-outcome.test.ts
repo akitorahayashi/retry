@@ -116,7 +116,7 @@ describe('awaitAttemptOutcome', () => {
     const cancelTimeout = vi.fn()
     const dependencies = {
       delay: vi.fn().mockReturnValue({
-        promise: new Promise(() => { }), // Never resolves so completion wins
+        promise: new Promise(() => {}), // Never resolves so completion wins
         cancel: cancelTimeout,
       }),
       terminateProcessTree: vi.fn(),
@@ -177,7 +177,7 @@ describe('awaitAttemptOutcome', () => {
         })
         .mockReturnValueOnce({
           // Second delay is the 5000ms termination timeout
-          promise: new Promise(() => { }), // Never resolves so completion wins
+          promise: new Promise(() => {}), // Never resolves so completion wins
           cancel: cancelTerminationTimeout,
         }),
       terminateProcessTree: vi.fn().mockResolvedValue(undefined),
@@ -221,7 +221,7 @@ describe('awaitAttemptOutcome', () => {
     }
 
     const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
-      () => { },
+      () => {},
     )
 
     const runningCommand: RunningCommand = {
@@ -239,7 +239,7 @@ describe('awaitAttemptOutcome', () => {
           cancel: cancelTimeout,
         })
         .mockReturnValueOnce({
-          promise: new Promise(() => { }), // Second delay never resolves
+          promise: new Promise(() => {}), // Second delay never resolves
           cancel: vi.fn(),
         }),
       terminateProcessTree: vi.fn().mockRejectedValue(new Error('Kill failed')),
@@ -268,7 +268,7 @@ describe('awaitAttemptOutcome', () => {
     }
 
     const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
-      () => { },
+      () => {},
     )
 
     const runningCommand: RunningCommand = {
@@ -285,7 +285,7 @@ describe('awaitAttemptOutcome', () => {
           cancel: vi.fn(),
         })
         .mockReturnValueOnce({
-          promise: new Promise(() => { }), // Second delay never resolves
+          promise: new Promise(() => {}), // Second delay never resolves
           cancel: vi.fn(),
         }),
       terminateProcessTree: vi.fn().mockRejectedValue('String error message'),
@@ -313,7 +313,7 @@ describe('awaitAttemptOutcome', () => {
     const runningCommand: RunningCommand = {
       pid: 1234,
       isRunning: () => true,
-      completion: new Promise(() => { }), // Never completes
+      completion: new Promise(() => {}), // Never completes
     }
 
     const dependencies = {
