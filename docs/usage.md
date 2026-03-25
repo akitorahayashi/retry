@@ -15,25 +15,6 @@ The repository-owned end-to-end verification path targets Linux runners.
 
 This configuration retries non-zero command failures up to three attempts.
 
-## Input Behavior
-
-Required inputs:
-
-- `command`
-- `max_attempts`
-
-Optional policy inputs include timeout, fixed delay, delay schedule, failure class policy, exit-code filters, continue-on-error mode, and termination grace timing.
-
-The output surface is:
-
-- `attempts`
-- `final_exit_code`
-- `final_outcome`
-- `succeeded`
-- `final_stdout`
-
-`final_stdout` contains the final attempt stdout exactly as emitted by the command.
-
 ## Structured Output Example
 
 ```yaml
@@ -66,14 +47,3 @@ The output surface is:
 ```
 
 This configuration retries only timeout failures and applies attempt-specific delays.
-
-## Local Verification
-
-Repository-local verification commands are:
-
-- `just fix`
-- `just check`
-- `just test`
-
-`just fix` applies formatter and safe lint fixes.
-`just check` validates format, lint, and type safety.

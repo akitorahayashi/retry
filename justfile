@@ -27,6 +27,11 @@ check:
 test:
     npm run test
 
+# Generate coverage report
+coverage:
+    rm -rf coverage
+    npm run test:coverage
+
 # Remove repository-local generated artifacts
 clean:
     rm -rf .tmp coverage node_modules
