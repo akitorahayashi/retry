@@ -276,37 +276,49 @@ describe('executeRetry', () => {
     expect(result.attempts).toBe(3)
   })
 
-  it('escalates synchronous errors from runCommand', async () => {
-    const runCommand = vi.fn().mockImplementationOnce(() => {
+  it('captures synchronous errors from runCommand as attempt errors', async () => {
+    const runCommand = vi.fn().mockImplementation(() => {
       throw new Error('spawn failed')
     })
 
-    await expect(
-      executeRetry(createRequest({ maxAttempts: 2 }), {
-        runCommand,
-        delay: vi.fn().mockReturnValue(createNeverDelay()),
-        terminateProcessTree: vi.fn().mockResolvedValue(undefined),
-      }),
-    ).rejects.toThrow('spawn failed')
+    const result = await executeRetry(createRequest({ maxAttempts: 2 }), {
+      runCommand,
+      delay: vi.fn().mockReturnValue(createNeverDelay()),
+      terminateProcessTree: vi.fn().mockResolvedValue(undefined),
+    })
 
-    expect(runCommand).toHaveBeenCalledTimes(1)
+    expect(result).toEqual({
+      attempts: 2,
+      finalExitCode: null,
+      finalOutcome: 'error',
+      succeeded: false,
+      finalStdout: '',
+    })
+
+    expect(runCommand).toHaveBeenCalledTimes(2)
   })
 
-  it('escalates promise rejections from runCommand completion', async () => {
-    const runCommand = vi.fn().mockReturnValueOnce({
+  it('captures promise rejections from runCommand completion as attempt errors', async () => {
+    const runCommand = vi.fn().mockReturnValue({
       pid: 101,
       completion: Promise.reject(new Error('process crashed')),
       isRunning: () => false,
     })
 
-    await expect(
-      executeRetry(createRequest({ maxAttempts: 2 }), {
-        runCommand,
-        delay: vi.fn().mockReturnValue(createNeverDelay()),
-        terminateProcessTree: vi.fn().mockResolvedValue(undefined),
-      }),
-    ).rejects.toThrow('process crashed')
+    const result = await executeRetry(createRequest({ maxAttempts: 2 }), {
+      runCommand,
+      delay: vi.fn().mockReturnValue(createNeverDelay()),
+      terminateProcessTree: vi.fn().mockResolvedValue(undefined),
+    })
 
-    expect(runCommand).toHaveBeenCalledTimes(1)
+    expect(result).toEqual({
+      attempts: 2,
+      finalExitCode: null,
+      finalOutcome: 'error',
+      succeeded: false,
+      finalStdout: '',
+    })
+
+    expect(runCommand).toHaveBeenCalledTimes(2)
   })
 })
