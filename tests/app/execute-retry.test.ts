@@ -42,10 +42,10 @@ function createRequest(
   }
 }
 
-function completed(exitCode: number | null): RunningCommand {
+function completed(exitCode: number | null, stdout = ''): RunningCommand {
   return {
     pid: 100,
-    completion: Promise.resolve({ exitCode }),
+    completion: Promise.resolve({ exitCode, stdout }),
     isRunning: () => false,
   }
 }
@@ -59,15 +59,21 @@ function createNeverDelay() {
 
 describe('executeRetry', () => {
   it('returns timeout and terminates process tree when timeout wins', async () => {
-    let resolveCompletion!: (value: { exitCode: number | null }) => void
-    const completionPromise = new Promise<{ exitCode: number | null }>(
+    let resolveCompletion!: (value: {
+      exitCode: number | null
+      stdout: string
+    }) => void
+    const completionPromise = new Promise<{
+      exitCode: number | null
+      stdout: string
+    }>(
       (resolve) => {
         resolveCompletion = resolve
       },
     )
 
     const terminateProcessTree = vi.fn().mockImplementation(async () => {
-      resolveCompletion({ exitCode: null })
+      resolveCompletion({ exitCode: null, stdout: '' })
     })
     const runCommand = vi.fn().mockReturnValue({
       pid: 100,
@@ -95,11 +101,12 @@ describe('executeRetry', () => {
 
     expect(terminateProcessTree).toHaveBeenCalledWith(100, 2)
     expect(result).toEqual({
-      attempts: 1,
-      finalExitCode: null,
-      finalOutcome: 'timeout',
-      succeeded: false,
-    })
+          attempts: 1,
+          finalExitCode: null,
+          finalOutcome: 'timeout',
+          succeeded: false,
+          finalStdout: '',
+        })
   })
 
   it.each([
@@ -163,8 +170,8 @@ describe('executeRetry', () => {
   it('stops when one attempt succeeds', async () => {
     const runCommand = vi
       .fn()
-      .mockReturnValueOnce(completed(1))
-      .mockReturnValueOnce(completed(0))
+      .mockReturnValueOnce(completed(1, 'first attempt\n'))
+      .mockReturnValueOnce(completed(0, '{"ok":true}'))
 
     const result = await executeRetry(createRequest(), {
       runCommand,
@@ -173,12 +180,13 @@ describe('executeRetry', () => {
     })
 
     expect(runCommand).toHaveBeenCalledTimes(2)
-    expect(result).toEqual({
-      attempts: 2,
-      finalExitCode: 0,
-      finalOutcome: 'success',
-      succeeded: true,
-    })
+      expect(result).toEqual({
+        attempts: 2,
+        finalExitCode: 0,
+        finalOutcome: 'success',
+        succeeded: true,
+        finalStdout: '{"ok":true}',
+      })
   })
 
   it('stops without retry when policy excludes error failures', async () => {
@@ -194,12 +202,13 @@ describe('executeRetry', () => {
     )
 
     expect(runCommand).toHaveBeenCalledTimes(1)
-    expect(result).toEqual({
-      attempts: 1,
-      finalExitCode: 9,
-      finalOutcome: 'error',
-      succeeded: false,
-    })
+      expect(result).toEqual({
+        attempts: 1,
+        finalExitCode: 9,
+        finalOutcome: 'error',
+        succeeded: false,
+        finalStdout: '',
+      })
   })
 
   it('retries only configured exit codes when filter is provided', async () => {
@@ -218,12 +227,13 @@ describe('executeRetry', () => {
     )
 
     expect(runCommand).toHaveBeenCalledTimes(2)
-    expect(result).toEqual({
-      attempts: 2,
-      finalExitCode: 3,
-      finalOutcome: 'error',
-      succeeded: false,
-    })
+      expect(result).toEqual({
+        attempts: 2,
+        finalExitCode: 3,
+        finalOutcome: 'error',
+        succeeded: false,
+        finalStdout: '',
+      })
   })
 
   it('applies scheduled retry delay values ahead of fixed delay', async () => {
@@ -269,7 +279,7 @@ describe('executeRetry', () => {
       .mockImplementationOnce(() => {
         throw new Error('spawn failed')
       })
-      .mockReturnValueOnce(completed(0))
+      .mockReturnValueOnce(completed(0, '{"recovered":true}'))
 
     const result = await executeRetry(createRequest({ maxAttempts: 2 }), {
       runCommand,
@@ -278,12 +288,13 @@ describe('executeRetry', () => {
     })
 
     expect(runCommand).toHaveBeenCalledTimes(2)
-    expect(result).toEqual({
-      attempts: 2,
-      finalExitCode: 0,
-      finalOutcome: 'success',
-      succeeded: true,
-    })
+      expect(result).toEqual({
+        attempts: 2,
+        finalExitCode: 0,
+        finalOutcome: 'success',
+        succeeded: true,
+        finalStdout: '{"recovered":true}',
+      })
   })
 
   it('treats promise rejections in runCommand completion as error outcome and retries', async () => {
@@ -291,10 +302,10 @@ describe('executeRetry', () => {
       .fn()
       .mockReturnValueOnce({
         pid: 101,
-        completion: Promise.reject(new Error('process crashed')),
-        isRunning: () => false,
-      })
-      .mockReturnValueOnce(completed(0))
+          completion: Promise.reject(new Error('process crashed')),
+          isRunning: () => false,
+        })
+      .mockReturnValueOnce(completed(0, '{"recovered":true}'))
 
     const result = await executeRetry(createRequest({ maxAttempts: 2 }), {
       runCommand,
@@ -303,11 +314,12 @@ describe('executeRetry', () => {
     })
 
     expect(runCommand).toHaveBeenCalledTimes(2)
-    expect(result).toEqual({
-      attempts: 2,
-      finalExitCode: 0,
-      finalOutcome: 'success',
-      succeeded: true,
-    })
+      expect(result).toEqual({
+        attempts: 2,
+        finalExitCode: 0,
+        finalOutcome: 'success',
+        succeeded: true,
+        finalStdout: '{"recovered":true}',
+      })
   })
 })

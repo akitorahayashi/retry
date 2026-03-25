@@ -4,6 +4,7 @@ export interface AttemptResult {
   attempt: number
   outcome: AttemptOutcome
   exitCode: number | null
+  stdout: string
 }
 
 export interface FinalResult {
@@ -11,6 +12,7 @@ export interface FinalResult {
   finalExitCode: number | null
   finalOutcome: AttemptOutcome
   succeeded: boolean
+  finalStdout: string
 }
 
 export function toFinalResult(result: AttemptResult): FinalResult {
@@ -19,5 +21,6 @@ export function toFinalResult(result: AttemptResult): FinalResult {
     finalExitCode: result.exitCode,
     finalOutcome: result.outcome,
     succeeded: result.outcome === 'success',
+    finalStdout: result.stdout,
   }
 }

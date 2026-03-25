@@ -15,6 +15,7 @@ interface AwaitAttemptOutcomeDependencies {
 interface AttemptExecutionOutcome {
   outcome: AttemptOutcome
   exitCode: number | null
+  stdout: string
 }
 
 export async function awaitAttemptOutcome(
@@ -26,6 +27,7 @@ export async function awaitAttemptOutcome(
   const completionPromise = runningCommand.completion.then((completion) => ({
     type: 'completion' as const,
     exitCode: completion.exitCode,
+    stdout: completion.stdout,
   }))
 
   if (command.timeoutSeconds === undefined) {
@@ -33,6 +35,7 @@ export async function awaitAttemptOutcome(
     return {
       outcome: completion.exitCode === 0 ? 'success' : 'error',
       exitCode: completion.exitCode,
+      stdout: completion.stdout,
     }
   }
 
@@ -48,6 +51,7 @@ export async function awaitAttemptOutcome(
       return {
         outcome: result.exitCode === 0 ? 'success' : 'error',
         exitCode: result.exitCode,
+        stdout: result.stdout,
       }
     }
 
@@ -85,12 +89,14 @@ export async function awaitAttemptOutcome(
         return {
           outcome: 'timeout',
           exitCode: null,
+          stdout: '',
         }
       }
 
       return {
         outcome: 'timeout',
         exitCode: finalCompletion.exitCode,
+        stdout: finalCompletion.stdout,
       }
     } finally {
       terminationTimeout.cancel()
