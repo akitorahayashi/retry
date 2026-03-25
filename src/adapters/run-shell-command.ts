@@ -14,8 +14,9 @@ export interface RunningCommand {
 export function runShellCommand(
   command: string,
   shell: string,
+  spawnFn = spawn,
 ): RunningCommand {
-  const child = spawn(command, {
+  const child = spawnFn(command, {
     shell,
     detached: true,
     stdio: ['ignore', 'pipe', 'pipe'],
