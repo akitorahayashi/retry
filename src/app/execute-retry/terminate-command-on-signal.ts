@@ -10,7 +10,7 @@ interface RegisterCommandTerminationOnSignalParams {
 export function registerCommandTerminationOnSignal(
   params: RegisterCommandTerminationOnSignalParams,
 ): () => void {
-  const onSignal = async (signal: NodeJS.Signals): Promise<void> => {
+  const terminateCommandAndProcessTree = async (signal: NodeJS.Signals): Promise<void> => {
     const runningCommand = params.getRunningCommand()
     if (!runningCommand?.isRunning()) {
       return
@@ -31,8 +31,8 @@ export function registerCommandTerminationOnSignal(
     }
   }
 
-  const onSigterm = () => {
-    onSignal('SIGTERM')
+  const handleSigtermTermination = () => {
+    terminateCommandAndProcessTree('SIGTERM')
       .then(() => {
         process.exit(0)
       })
@@ -43,8 +43,8 @@ export function registerCommandTerminationOnSignal(
       })
   }
 
-  const onSigint = () => {
-    onSignal('SIGINT')
+  const handleSigintTermination = () => {
+    terminateCommandAndProcessTree('SIGINT')
       .then(() => {
         process.exit(0)
       })
@@ -55,11 +55,11 @@ export function registerCommandTerminationOnSignal(
       })
   }
 
-  process.once('SIGTERM', onSigterm)
-  process.once('SIGINT', onSigint)
+  process.once('SIGTERM', handleSigtermTermination)
+  process.once('SIGINT', handleSigintTermination)
 
   return () => {
-    process.off('SIGTERM', onSigterm)
-    process.off('SIGINT', onSigint)
+    process.off('SIGTERM', handleSigtermTermination)
+    process.off('SIGINT', handleSigintTermination)
   }
 }
