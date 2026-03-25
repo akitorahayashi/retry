@@ -25,9 +25,9 @@ async function run(): Promise<void> {
 
   emitOutputs(result)
 
-  if (!result.succeeded && !request.continueOnError) {
+  if (result.outcome !== 'success' && !request.continueOnError) {
     core.setFailed(
-      `Command failed after ${result.attempts} attempts. final_outcome=${result.finalOutcome} final_exit_code=${result.finalExitCode ?? 'none'}`,
+      `Command failed after ${result.attempt} attempts. final_outcome=${result.outcome} final_exit_code=${result.exitCode ?? 'none'}`,
     )
   }
 }

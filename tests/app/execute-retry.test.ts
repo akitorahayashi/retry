@@ -100,11 +100,10 @@ describe('executeRetry', () => {
 
     expect(terminateProcessTree).toHaveBeenCalledWith(100, 2)
     expect(result).toEqual({
-      attempts: 1,
-      finalExitCode: null,
-      finalOutcome: 'timeout',
-      succeeded: false,
-      finalStdout: '',
+      attempt: 1,
+      exitCode: null,
+      outcome: 'timeout',
+      stdout: '',
     })
   })
 
@@ -184,11 +183,10 @@ describe('executeRetry', () => {
 
     expect(runCommand).toHaveBeenCalledTimes(2)
     expect(result).toEqual({
-      attempts: 2,
-      finalExitCode: 0,
-      finalOutcome: 'success',
-      succeeded: true,
-      finalStdout: '{"ok":true}',
+      attempt: 2,
+      exitCode: 0,
+      outcome: 'success',
+      stdout: '{"ok":true}',
     })
   })
 
@@ -206,11 +204,10 @@ describe('executeRetry', () => {
 
     expect(runCommand).toHaveBeenCalledTimes(1)
     expect(result).toEqual({
-      attempts: 1,
-      finalExitCode: 9,
-      finalOutcome: 'error',
-      succeeded: false,
-      finalStdout: '',
+      attempt: 1,
+      exitCode: 9,
+      outcome: 'error',
+      stdout: '',
     })
   })
 
@@ -231,11 +228,10 @@ describe('executeRetry', () => {
 
     expect(runCommand).toHaveBeenCalledTimes(2)
     expect(result).toEqual({
-      attempts: 2,
-      finalExitCode: 3,
-      finalOutcome: 'error',
-      succeeded: false,
-      finalStdout: '',
+      attempt: 2,
+      exitCode: 3,
+      outcome: 'error',
+      stdout: '',
     })
   })
 
@@ -273,7 +269,7 @@ describe('executeRetry', () => {
 
     expect(delayFn).toHaveBeenNthCalledWith(1, 1000)
     expect(delayFn).toHaveBeenNthCalledWith(2, 5000)
-    expect(result.attempts).toBe(3)
+    expect(result.attempt).toBe(3)
   })
 
   it('captures synchronous errors from runCommand as attempt errors', async () => {
