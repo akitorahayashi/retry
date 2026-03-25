@@ -5,11 +5,12 @@ import { terminateProcessTree } from '../../src/adapters/terminate-process-tree'
 
 describe('terminateProcessTree', () => {
   // Grace period constants for test clarity
-  const GRACE_PERIOD_SECONDS = 0.05
+  const GRACE_PERIOD_SECONDS = 5
   const GRACE_PERIOD_MS = GRACE_PERIOD_SECONDS * 1000
 
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.useRealTimers()
   })
 
   it('terminates long-running process by pid', async () => {
@@ -32,7 +33,9 @@ describe('terminateProcessTree', () => {
     })
 
     try {
+      vi.useFakeTimers()
       const terminatePromise = terminateProcessTree(pid, GRACE_PERIOD_SECONDS)
+      await vi.advanceTimersByTimeAsync(GRACE_PERIOD_MS)
 
       await terminatePromise
       await closePromise
@@ -64,14 +67,17 @@ describe('terminateProcessTree', () => {
       const pid = child.pid as number
 
       // Wait a moment for process to actually start before terminating
-      await new Promise((resolve) => setTimeout(resolve, GRACE_PERIOD_MS))
+      // We read stdout/stderr to ensure it actually started or just wait a bit in real time
+      await new Promise((resolve) => setTimeout(resolve, 50)) // real time wait for process spawn
 
       const closePromise = new Promise<void>((resolve) => {
         child.on('close', () => resolve())
       })
 
       try {
+        vi.useFakeTimers()
         const terminatePromise = terminateProcessTree(pid, GRACE_PERIOD_SECONDS)
+        await vi.advanceTimersByTimeAsync(GRACE_PERIOD_MS)
 
         await terminatePromise
         await closePromise
@@ -118,7 +124,9 @@ describe('terminateProcessTree', () => {
       })
 
       try {
+        vi.useFakeTimers()
         const terminatePromise = terminateProcessTree(pid, GRACE_PERIOD_SECONDS)
+        await vi.advanceTimersByTimeAsync(GRACE_PERIOD_MS)
 
         await terminatePromise
         await closePromise
@@ -165,7 +173,9 @@ describe('terminateProcessTree', () => {
         })
 
       try {
+        vi.useFakeTimers()
         const terminatePromise = terminateProcessTree(pid, GRACE_PERIOD_SECONDS)
+        await vi.advanceTimersByTimeAsync(GRACE_PERIOD_MS)
 
         await terminatePromise
 

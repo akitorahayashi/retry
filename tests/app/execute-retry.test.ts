@@ -133,7 +133,16 @@ describe('executeRetry', () => {
       resolveCompletion = resolve
     })
 
-    const terminateProcessTree = vi.fn().mockResolvedValue(undefined)
+    let resolveTerminate!: () => void
+    const terminatePromise = new Promise<void>((resolve) => {
+      resolveTerminate = resolve
+    })
+
+    const terminateProcessTree = vi.fn().mockImplementation(() => {
+      resolveTerminate()
+      return Promise.resolve()
+    })
+
     const runCommand = vi.fn().mockReturnValue({
       pid,
       completion: completionPromise,
@@ -154,9 +163,8 @@ describe('executeRetry', () => {
 
     signalHandler()
 
-    await vi.waitFor(() => {
-      expect(terminateProcessTree).toHaveBeenCalledWith(pid, 1)
-    })
+    await terminatePromise
+    expect(terminateProcessTree).toHaveBeenCalledWith(pid, 1)
 
     resolveCompletion({ exitCode: null, stdout: '' })
     await resultPromise
