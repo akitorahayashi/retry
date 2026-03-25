@@ -21,7 +21,7 @@ export async function executeAttempt(
 
   let runningCommand: RunningCommand | undefined
 
-  const cleanupSignalHandlers = registerCommandTerminationOnSignal({
+  const unregisterSignalHooks = registerCommandTerminationOnSignal({
     getRunningCommand: () => runningCommand,
     terminationGraceSeconds: command.terminationGraceSeconds,
     terminateProcessTree: dependencies.terminateProcessTree,
@@ -77,6 +77,6 @@ export async function executeAttempt(
       }
     }
   } finally {
-    cleanupSignalHandlers()
+    unregisterSignalHooks()
   }
 }
