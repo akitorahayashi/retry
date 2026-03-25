@@ -59,6 +59,42 @@ function createNeverDelay() {
 }
 
 describe('executeRetry', () => {
+  it('throws an error when finalAttempt is missing', async () => {
+    // We mock the maxAttempts property so it passes the integer validation
+    // but the loop does not run. We need to mock it returning > 0 for validation
+    // and > 0 for `request.maxAttempts > 0` check.
+    const request = createRequest({ maxAttempts: 1 })
+    Object.defineProperty(request, 'maxAttempts', {
+      get: vi.fn()
+        .mockReturnValueOnce(1) // Number.isInteger check
+        .mockReturnValueOnce(1) // <= 0 check
+        .mockReturnValueOnce(0), // for loop condition check
+    })
+
+    await expect(
+      executeRetry(request, {
+        runCommand: vi.fn(),
+        delay: vi.fn(),
+        terminateProcessTree: vi.fn(),
+      }),
+    ).rejects.toThrow('Retry execution did not produce an attempt result.')
+  })
+
+  it.each([0, -1, 1.5])(
+    'throws an error when maxAttempts is invalid (%s)',
+    async (invalidMaxAttempts) => {
+      await expect(
+        executeRetry(createRequest({ maxAttempts: invalidMaxAttempts }), {
+          runCommand: vi.fn(),
+          delay: vi.fn(),
+          terminateProcessTree: vi.fn(),
+        }),
+      ).rejects.toThrow(
+        `ExecuteRetryRequest.maxAttempts must be a positive integer, but received: ${invalidMaxAttempts}`,
+      )
+    },
+  )
+
   it('returns timeout and terminates process tree when timeout wins', async () => {
     let resolveCompletion!: (value: {
       exitCode: number | null

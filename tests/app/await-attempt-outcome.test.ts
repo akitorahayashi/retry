@@ -39,6 +39,42 @@ describe('awaitAttemptOutcome', () => {
     expect(dependencies.delay).not.toHaveBeenCalled()
   })
 
+  it('throws error when process unexpectedly times out despite timeoutSeconds being undefined', async () => {
+    const command: CommandSpec = {
+      command: 'echo "test"',
+      shell: 'bash',
+      timeoutSeconds: undefined,
+      terminationGraceSeconds: 5,
+    }
+    const runningCommand: RunningCommand = {
+      pid: 1234,
+      isRunning: () => true,
+      completion: Promise.resolve({ exitCode: null, stdout: '' }),
+    }
+
+    // Since `runningCommand.completion.then` in `awaitAttemptOutcome` forcibly
+    // maps the result to `{ type: 'completion', exitCode, stdout }`, we cannot
+    // easily return `{ type: 'timeout' }` from `completionPromise` just by
+    // controlling `runningCommand.completion`.
+    // However, we can mock `Promise.prototype.then` temporarily or somehow
+    // intercept `runningCommand.completion.then`.
+    // Better yet, mock `runningCommand.completion` object itself to have a custom `then` method.
+    runningCommand.completion = {
+      then: (onfulfilled: (value: any) => any) => {
+        return Promise.resolve(onfulfilled ? { type: 'timeout' } : undefined)
+      }
+    } as any
+    const dependencies = {
+      delay: vi.fn(),
+      terminateProcessTree: vi.fn(),
+    }
+
+    await expect(
+      awaitAttemptOutcome(command, 1, runningCommand, dependencies),
+    ).rejects.toThrow('Unexpected timeout when timeout is undefined')
+    expect(dependencies.delay).not.toHaveBeenCalled()
+  })
+
   it('returns error when process completes with non-zero exit code without timeout', async () => {
     const command: CommandSpec = {
       command: 'exit 1',
