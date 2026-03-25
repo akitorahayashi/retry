@@ -27,6 +27,7 @@ describe('runShellCommand', () => {
     const completion = await running.completion
 
     expect(completion.exitCode).toBe(0)
+    expect(completion.stdout).toContain('line on stdout')
   })
 
   it('returns non-zero exit code when command fails', async () => {
@@ -39,6 +40,7 @@ describe('runShellCommand', () => {
     const completion = await running.completion
 
     expect(completion.exitCode).toBe(17)
+    expect(completion.stdout).toBe('failing with exit code 17\n')
   })
 
   it('throws an error if the process fails to start and has no pid', () => {
@@ -90,6 +92,7 @@ describe('runShellCommand', () => {
     const completion = await running.completion
 
     expect(completion.exitCode).toBe(0)
+    expect(completion.stdout).toContain('test')
     expect(stdoutSpy).toHaveBeenCalled()
   })
 
@@ -104,6 +107,7 @@ describe('runShellCommand', () => {
     const completion = await running.completion
 
     expect(completion.exitCode).toBe(0)
+    expect(completion.stdout).toBe('')
     expect(stderrSpy).toHaveBeenCalled()
   })
 })

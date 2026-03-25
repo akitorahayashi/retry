@@ -1,4 +1,6 @@
 export function sanitizeCommand(command: string): string {
+  // Simple whitespace split for argument counting.
+  // This does not handle quoted arguments as a single unit.
   const parts = command.trim().split(/\s+/)
   if (parts.length === 0 || !parts[0]) {
     return '<empty>'

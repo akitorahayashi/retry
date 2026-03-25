@@ -5,7 +5,23 @@ import { executeRetry } from './app/execute-retry'
 
 async function run(): Promise<void> {
   const request = readInputs()
-  const result = await executeRetry(request)
+  const result = await executeRetry({
+    command: {
+      command: request.command,
+      shell: request.shell,
+      timeoutSeconds: request.timeoutSeconds,
+      terminationGraceSeconds: request.terminationGraceSeconds,
+    },
+    policy: {
+      retryOn: request.retryOn,
+      retryOnExitCodes: request.retryOnExitCodes,
+    },
+    schedule: {
+      retryDelaySeconds: request.retryDelaySeconds,
+      retryDelayScheduleSeconds: request.retryDelayScheduleSeconds,
+    },
+    maxAttempts: request.maxAttempts,
+  })
 
   emitOutputs(result)
 
