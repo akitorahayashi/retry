@@ -128,6 +128,48 @@ describe('readInputs', () => {
     expect(() => readInputs()).toThrow("Input 'max_attempts' must be >= 1.")
   })
 
+  it('throws when numeric value is not an integer', () => {
+    mockedGetInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'command':
+          return 'echo ok'
+        case 'max_attempts':
+          return '3.5'
+        default:
+          return ''
+      }
+    })
+
+    expect(() => readInputs()).toThrow("Input 'max_attempts' must be an integer.")
+  })
+
+  it.each([
+    { token: '0', expected: false },
+    { token: 'false', expected: false },
+    { token: 'no', expected: false },
+    { token: 'off', expected: false },
+    { token: '1', expected: true },
+    { token: 'true', expected: true },
+    { token: 'yes', expected: true },
+    { token: 'on', expected: true },
+  ])('normalizes boolean token "$token" to $expected', ({ token, expected }) => {
+    mockedGetInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'command':
+          return 'echo ok'
+        case 'max_attempts':
+          return '1'
+        case 'continue_on_error':
+          return token
+        default:
+          return ''
+      }
+    })
+
+    const result = readInputs()
+    expect(result.continueOnError).toBe(expected)
+  })
+
   it('throws when continue_on_error uses invalid boolean token', () => {
     mockedGetInput.mockImplementation((name: string) => {
       switch (name) {
