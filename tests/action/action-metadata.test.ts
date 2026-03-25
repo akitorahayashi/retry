@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, beforeAll } from 'vitest'
 import yaml from 'js-yaml'
 
 interface ActionFile {
@@ -19,16 +19,18 @@ function loadActionFile(path: string): ActionFile {
 }
 
 describe('action metadata contracts', () => {
-  it('configures the execution environment', () => {
-    const action = loadActionFile('action.yml')
+  let action: ActionFile
 
+  beforeAll(() => {
+    action = loadActionFile('action.yml')
+  })
+
+  it('configures the execution environment', () => {
     expect(action.runs.using).toBe('node24')
     expect(action.runs.main).toBe('dist/index.js')
   })
 
   it('defines required and optional inputs', () => {
-    const action = loadActionFile('action.yml')
-
     expect(action.inputs.command.required).toBe(true)
     expect(action.inputs.max_attempts.required).toBe(true)
     expect(action.inputs.shell.required).toBe(false)
@@ -47,8 +49,6 @@ describe('action metadata contracts', () => {
   })
 
   it('defines action outputs', () => {
-    const action = loadActionFile('action.yml')
-
     expect(Object.keys(action.outputs)).toEqual(
       expect.arrayContaining([
         'attempts',
