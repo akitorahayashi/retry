@@ -53,7 +53,7 @@ function completed(exitCode: number | null, stdout = ''): RunningCommand {
 
 function createNeverDelay() {
   return {
-    promise: new Promise<void>(() => { }),
+    promise: new Promise<void>(() => {}),
     cancel: vi.fn(),
   }
 }
