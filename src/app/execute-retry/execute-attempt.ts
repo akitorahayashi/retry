@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 import type { RunningCommand } from '../../adapters/run-shell-command'
-import type { CommandExecution } from '../../domain/command'
+import type { CommandSpec } from '../../domain/command'
 import type { AttemptResult } from '../../domain/result'
 import type { ExecuteRetryDependencies } from './execute-retry-dependencies'
 import {
@@ -13,7 +13,7 @@ import { sanitizeCommand } from './sanitize-command'
 export { sanitizeCommand }
 
 export async function executeAttempt(
-  command: CommandExecution,
+  command: CommandSpec,
   attempt: number,
   dependencies: ExecuteRetryDependencies,
 ): Promise<AttemptResult> {
@@ -39,21 +39,33 @@ export async function executeAttempt(
 
     logAttemptCompletion(attempt, result.outcome, result.exitCode)
 
-    return {
-      attempt,
-      outcome: result.outcome,
-      exitCode: result.exitCode,
-      stdout: result.stdout,
+    if (result.outcome === 'success') {
+      if (result.exitCode === null) {
+        throw new Error('Successful attempt must include a numeric exit code.')
+      }
+
+      return {
+        attempt,
+        outcome: 'success',
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+      }
     }
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error)
-    core.error(`Attempt ${attempt} failed to execute command: ${message}`)
+
+    if (result.outcome === 'timeout') {
+      return {
+        attempt,
+        outcome: 'timeout',
+        exitCode: null,
+        stdout: result.stdout,
+      }
+    }
 
     return {
       attempt,
       outcome: 'error',
-      exitCode: null,
-      stdout: '',
+      exitCode: result.exitCode,
+      stdout: result.stdout,
     }
   } finally {
     cleanupSignalHandlers()
