@@ -86,7 +86,9 @@ describe('awaitAttemptOutcome', () => {
 
     // Create a resolvable promise to represent a delay that never triggered before completion
     let resolveDelay!: () => void
-    const delayPromise = new Promise<void>((resolve) => { resolveDelay = resolve })
+    const delayPromise = new Promise<void>((resolve) => {
+      resolveDelay = resolve
+    })
 
     const dependencies = {
       delay: vi.fn().mockReturnValue({
@@ -148,10 +150,14 @@ describe('awaitAttemptOutcome', () => {
     const cancelTerminationTimeout = vi.fn()
 
     let resolveTerminationDelay!: () => void
-    const terminationDelayPromise = new Promise<void>((resolve) => { resolveTerminationDelay = resolve })
+    const terminationDelayPromise = new Promise<void>((resolve) => {
+      resolveTerminationDelay = resolve
+    })
 
     let resolveTerminateProcessTree!: () => void
-    const terminateProcessTreePromise = new Promise<void>((resolve) => { resolveTerminateProcessTree = resolve })
+    const terminateProcessTreePromise = new Promise<void>((resolve) => {
+      resolveTerminateProcessTree = resolve
+    })
 
     const dependencies = {
       delay: vi
@@ -214,7 +220,9 @@ describe('awaitAttemptOutcome', () => {
 
     let resolveCompletion!: (value: any) => void
     const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
-      (resolve) => { resolveCompletion = resolve },
+      (resolve) => {
+        resolveCompletion = resolve
+      },
     )
 
     const runningCommand: RunningCommand = {
@@ -225,7 +233,9 @@ describe('awaitAttemptOutcome', () => {
 
     const cancelTimeout = vi.fn()
     let resolveTerminationDelay!: () => void
-    const terminationDelayPromise = new Promise<void>((resolve) => { resolveTerminationDelay = resolve })
+    const terminationDelayPromise = new Promise<void>((resolve) => {
+      resolveTerminationDelay = resolve
+    })
 
     const dependencies = {
       delay: vi
@@ -265,7 +275,9 @@ describe('awaitAttemptOutcome', () => {
 
     let resolveCompletion!: (value: any) => void
     const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
-      (resolve) => { resolveCompletion = resolve },
+      (resolve) => {
+        resolveCompletion = resolve
+      },
     )
 
     const runningCommand: RunningCommand = {
@@ -275,7 +287,9 @@ describe('awaitAttemptOutcome', () => {
     }
 
     let resolveTerminationDelay!: () => void
-    const terminationDelayPromise = new Promise<void>((resolve) => { resolveTerminationDelay = resolve })
+    const terminationDelayPromise = new Promise<void>((resolve) => {
+      resolveTerminationDelay = resolve
+    })
 
     const dependencies = {
       delay: vi
@@ -315,7 +329,9 @@ describe('awaitAttemptOutcome', () => {
 
     let resolveCompletion!: (value: any) => void
     const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
-      (resolve) => { resolveCompletion = resolve },
+      (resolve) => {
+        resolveCompletion = resolve
+      },
     )
 
     const runningCommand: RunningCommand = {
