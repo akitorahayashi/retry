@@ -243,7 +243,7 @@ describe('awaitAttemptOutcome', () => {
       terminateProcessTree: vi.fn().mockRejectedValue('String error message'),
     }
 
-    const coreErrorSpy = vi.spyOn(require('@actions/core'), 'error')
+    const coreErrorSpy = vi.spyOn(core, 'error')
 
     const attemptPromise = awaitAttemptOutcome(
       command,
@@ -302,7 +302,7 @@ describe('awaitAttemptOutcome', () => {
 
 describe('logAttemptCompletion', () => {
   it('logs completion message correctly', () => {
-    const coreInfoSpy = vi.spyOn(core, 'info').mockImplementation(() => {})
+    const coreInfoSpy = vi.spyOn(core, 'info')
 
     logAttemptCompletion(1, 'success', 0)
     expect(coreInfoSpy).toHaveBeenCalledWith(

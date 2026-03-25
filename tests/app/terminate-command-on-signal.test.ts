@@ -9,20 +9,8 @@ describe('registerCommandTerminationOnSignal', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockProcessOnce = vi
-      .spyOn(process, 'once')
-      .mockImplementation(
-        (_event: string | symbol, _listener: (...args: unknown[]) => void) => {
-          return process
-        },
-      )
-    mockProcessOff = vi
-      .spyOn(process, 'off')
-      .mockImplementation(
-        (_event: string | symbol, _listener: (...args: unknown[]) => void) => {
-          return process
-        },
-      )
+    mockProcessOnce = vi.spyOn(process, 'once').mockReturnThis()
+    mockProcessOff = vi.spyOn(process, 'off').mockReturnThis()
     mockProcessExit = vi
       .spyOn(process, 'exit')
       .mockImplementation((_code?: number | string | null) => {
