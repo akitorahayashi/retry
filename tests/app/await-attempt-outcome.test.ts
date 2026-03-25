@@ -52,18 +52,16 @@ describe('awaitAttemptOutcome', () => {
       completion: Promise.resolve({ exitCode: null, stdout: '' }),
     }
 
-    // Since `runningCommand.completion.then` in `awaitAttemptOutcome` forcibly
-    // maps the result to `{ type: 'completion', exitCode, stdout }`, we cannot
-    // easily return `{ type: 'timeout' }` from `completionPromise` just by
-    // controlling `runningCommand.completion`.
-    // However, we can mock `Promise.prototype.then` temporarily or somehow
-    // intercept `runningCommand.completion.then`.
-    // Better yet, mock `runningCommand.completion` object itself to have a custom `then` method.
+    // To simulate completion resolving to a timeout outcome natively,
+    // we use `Object.defineProperty` or `vi.spyOn` on the promise `then`.
+    // But since it's a native promise, we can instead return an object
+    // that mimics a promise and directly invokes the callback with what
+    // it expects or just skips the completion mapping.
+    // Wait, the easiest way is to mock `completionPromise` inside the function?
+    // We cannot. But we CAN mock `runningCommand.completion.then` directly!
     runningCommand.completion = {
-      then: (onfulfilled: (value: any) => any) => {
-        return Promise.resolve(onfulfilled ? { type: 'timeout' } : undefined)
-      }
-    } as any
+      then: vi.fn().mockResolvedValue({ type: 'timeout' }),
+    } as unknown as Promise<{ exitCode: number | null; stdout: string }>
     const dependencies = {
       delay: vi.fn(),
       terminateProcessTree: vi.fn(),

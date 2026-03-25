@@ -5,13 +5,16 @@ import type { CommandSpec } from '../../src/domain/command'
 import * as awaitAttemptOutcomeModule from '../../src/app/execute-retry/await-attempt-outcome'
 
 // Mock awaitAttemptOutcome to simulate a success but with a null exit code
-vi.mock('../../src/app/execute-retry/await-attempt-outcome', async (importOriginal) => {
-  const actual = await importOriginal<typeof awaitAttemptOutcomeModule>()
-  return {
-    ...actual,
-    awaitAttemptOutcome: vi.fn(),
-  }
-})
+vi.mock(
+  '../../src/app/execute-retry/await-attempt-outcome',
+  async (importOriginal) => {
+    const actual = await importOriginal<typeof awaitAttemptOutcomeModule>()
+    return {
+      ...actual,
+      awaitAttemptOutcome: vi.fn(),
+    }
+  },
+)
 
 describe('executeAttempt', () => {
   beforeEach(() => {
@@ -42,8 +45,8 @@ describe('executeAttempt', () => {
       stdout: '',
     })
 
-    await expect(
-      executeAttempt(command, 1, dependencies)
-    ).rejects.toThrow('Successful attempt must include a numeric exit code.')
+    await expect(executeAttempt(command, 1, dependencies)).rejects.toThrow(
+      'Successful attempt must include a numeric exit code.',
+    )
   })
 })
