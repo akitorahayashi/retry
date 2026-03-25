@@ -12,11 +12,10 @@ interface AwaitAttemptOutcomeDependencies {
   terminateProcessTree: (pid: number, graceSeconds: number) => Promise<void>
 }
 
-interface AttemptExecutionOutcome {
-  outcome: AttemptOutcome
-  exitCode: number | null
-  stdout: string
-}
+export type ExecutionResult =
+  | { outcome: 'success'; exitCode: number; stdout: string }
+  | { outcome: 'error'; exitCode: number | null; stdout: string }
+  | { outcome: 'timeout'; exitCode: null; stdout: string }
 
 type RaceOutcome =
   | { type: 'completion'; exitCode: number | null; stdout: string }
@@ -27,7 +26,7 @@ export async function awaitAttemptOutcome(
   attempt: number,
   runningCommand: RunningCommand,
   dependencies: AwaitAttemptOutcomeDependencies,
-): Promise<AttemptExecutionOutcome> {
+): Promise<ExecutionResult> {
   const completionPromise: Promise<RaceOutcome> =
     runningCommand.completion.then((completion) => ({
       type: 'completion',
@@ -40,11 +39,19 @@ export async function awaitAttemptOutcome(
     if (completion.type === 'timeout') {
       throw new Error('Unexpected timeout when timeout is undefined')
     }
-    return {
-      outcome: completion.exitCode === 0 ? 'success' : 'error',
-      exitCode: completion.exitCode,
-      stdout: completion.stdout,
-    }
+    return (
+      completion.exitCode === 0
+        ? {
+            outcome: 'success',
+            exitCode: completion.exitCode,
+            stdout: completion.stdout,
+          }
+        : {
+            outcome: 'error',
+            exitCode: completion.exitCode,
+            stdout: completion.stdout,
+          }
+    ) as ExecutionResult
   }
 
   const timeout = dependencies.delay(command.timeoutSeconds * 1000)
@@ -56,11 +63,19 @@ export async function awaitAttemptOutcome(
     ])
 
     if (result.type === 'completion') {
-      return {
-        outcome: result.exitCode === 0 ? 'success' : 'error',
-        exitCode: result.exitCode,
-        stdout: result.stdout,
-      }
+      return (
+        result.exitCode === 0
+          ? {
+              outcome: 'success',
+              exitCode: result.exitCode,
+              stdout: result.stdout,
+            }
+          : {
+              outcome: 'error',
+              exitCode: result.exitCode,
+              stdout: result.stdout,
+            }
+      ) as ExecutionResult
     }
 
     core.warning(
@@ -102,7 +117,7 @@ export async function awaitAttemptOutcome(
         outcome: 'timeout',
         exitCode: finalCompletion.exitCode,
         stdout: finalCompletion.stdout,
-      }
+      } as ExecutionResult
     } finally {
       terminationTimeout.cancel()
     }

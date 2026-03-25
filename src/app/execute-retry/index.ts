@@ -2,8 +2,7 @@ import * as core from '@actions/core'
 import type { CommandSpec } from '../../domain/command'
 import type { RetryPolicy } from '../../domain/policy'
 import { shouldRetryFailure } from '../../domain/policy'
-import type { AttemptResult, FinalResult } from '../../domain/result'
-import { toFinalResult } from '../../domain/result'
+import type { AttemptResult } from '../../domain/result'
 import {
   resolveRetryDelaySeconds,
   type RetrySchedule,
@@ -25,7 +24,7 @@ export interface ExecuteRetryRequest {
 export async function executeRetry(
   request: ExecuteRetryRequest,
   dependencies: ExecuteRetryDependencies = executeRetryDependencies,
-): Promise<FinalResult> {
+): Promise<AttemptResult> {
   if (!Number.isInteger(request.maxAttempts) || request.maxAttempts <= 0) {
     throw new Error(
       `ExecuteRetryRequest.maxAttempts must be a positive integer, but received: ${request.maxAttempts}`,
@@ -43,11 +42,11 @@ export async function executeRetry(
     )
 
     if (finalAttempt.outcome === 'success') {
-      return toFinalResult(finalAttempt)
+      return finalAttempt
     }
 
     if (attempt === request.maxAttempts) {
-      return toFinalResult(finalAttempt)
+      return finalAttempt
     }
 
     if (
@@ -56,7 +55,7 @@ export async function executeRetry(
       core.info(
         'Failure is outside retry policy. Stopping without additional retries.',
       )
-      return toFinalResult(finalAttempt)
+      return finalAttempt
     }
 
     const delaySeconds = resolveRetryDelaySeconds(attempt, schedule)
@@ -75,5 +74,5 @@ export async function executeRetry(
     throw new Error('Retry execution did not produce an attempt result.')
   }
 
-  return toFinalResult(finalAttempt)
+  return finalAttempt
 }
