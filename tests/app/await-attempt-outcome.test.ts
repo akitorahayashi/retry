@@ -218,7 +218,10 @@ describe('awaitAttemptOutcome', () => {
       terminationGraceSeconds: 5,
     }
 
-    let resolveCompletion!: (value: any) => void
+    let resolveCompletion!: (value: {
+      exitCode: number
+      stdout: string
+    }) => void
     const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
       (resolve) => {
         resolveCompletion = resolve
@@ -273,7 +276,10 @@ describe('awaitAttemptOutcome', () => {
       terminationGraceSeconds: 5,
     }
 
-    let resolveCompletion!: (value: any) => void
+    let resolveCompletion!: (value: {
+      exitCode: number
+      stdout: string
+    }) => void
     const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
       (resolve) => {
         resolveCompletion = resolve
@@ -327,7 +333,10 @@ describe('awaitAttemptOutcome', () => {
       terminationGraceSeconds: 5,
     }
 
-    let resolveCompletion!: (value: any) => void
+    let resolveCompletion!: (value: {
+      exitCode: number
+      stdout: string
+    }) => void
     const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
       (resolve) => {
         resolveCompletion = resolve

@@ -59,16 +59,14 @@ describe('terminateProcessTree', () => {
 
       const child = spawn('bash', [fixture], {
         detached: true,
-        stdio: 'ignore',
+        stdio: ['ignore', 'pipe', 'ignore'],
       })
 
       expect(typeof child.pid).toBe('number')
 
       const pid = child.pid as number
 
-      // Wait a moment for process to actually start before terminating
-      // We read stdout/stderr to ensure it actually started or just wait a bit in real time
-      await new Promise((resolve) => setTimeout(resolve, 50)) // real time wait for process spawn
+      await waitForReadySignal(child)
 
       const closePromise = new Promise<void>((resolve) => {
         child.on('close', () => resolve())
@@ -199,4 +197,53 @@ function isAlive(pid: number): boolean {
   } catch {
     return false
   }
+}
+
+function waitForReadySignal(
+  child: ReturnType<typeof spawn>,
+  signal = 'READY',
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const stdout = child.stdout
+    if (!stdout) {
+      reject(new Error('Child process stdout is not available'))
+      return
+    }
+
+    const onData = (chunk: Buffer | string) => {
+      const output = typeof chunk === 'string' ? chunk : chunk.toString('utf8')
+      if (!output.includes(signal)) {
+        return
+      }
+      cleanup()
+      resolve()
+    }
+
+    const onError = (error: Error) => {
+      cleanup()
+      reject(error)
+    }
+
+    const onClose = (
+      code: number | null,
+      closedSignal: NodeJS.Signals | null,
+    ) => {
+      cleanup()
+      reject(
+        new Error(
+          `Child process exited before readiness signal (code=${String(code)}, signal=${String(closedSignal)})`,
+        ),
+      )
+    }
+
+    const cleanup = () => {
+      stdout.off('data', onData)
+      child.off('error', onError)
+      child.off('close', onClose)
+    }
+
+    stdout.on('data', onData)
+    child.on('error', onError)
+    child.on('close', onClose)
+  })
 }
