@@ -135,6 +135,8 @@ describe('readInputs', () => {
           return 'echo ok'
         case 'max_attempts':
           return '3.5'
+        case 'timeout_seconds':
+          return '10.2'
         default:
           return ''
       }
@@ -142,6 +144,23 @@ describe('readInputs', () => {
 
     expect(() => readInputs()).toThrow(
       "Input 'max_attempts' must be an integer.",
+    )
+
+    mockedGetInput.mockImplementation((name: string) => {
+      switch (name) {
+        case 'command':
+          return 'echo ok'
+        case 'max_attempts':
+          return '3'
+        case 'timeout_seconds':
+          return 'abc'
+        default:
+          return ''
+      }
+    })
+
+    expect(() => readInputs()).toThrow(
+      "Input 'timeout_seconds' must be an integer.",
     )
   })
 
@@ -154,6 +173,9 @@ describe('readInputs', () => {
     { token: 'true', expected: true },
     { token: 'yes', expected: true },
     { token: 'on', expected: true },
+    { token: 'True', expected: true },
+    { token: 'YES', expected: true },
+    { token: 'Off', expected: false },
   ])('normalizes boolean token "$token" to $expected', ({
     token,
     expected,
