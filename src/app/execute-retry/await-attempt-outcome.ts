@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 import type { RunningCommand } from '../../adapters/run-shell-command'
-import type { CommandExecution } from '../../domain/command'
+import type { CommandSpec } from '../../domain/command'
 import type { AttemptOutcome } from '../../domain/policy'
 import { formatExitCode } from './format-exit-code'
 
@@ -19,7 +19,7 @@ interface AttemptExecutionOutcome {
 }
 
 export async function awaitAttemptOutcome(
-  command: CommandExecution,
+  command: CommandSpec,
   attempt: number,
   runningCommand: RunningCommand,
   dependencies: AwaitAttemptOutcomeDependencies,

@@ -1,4 +1,4 @@
-export interface CommandExecution {
+export interface CommandSpec {
   command: string
   shell: string
   timeoutSeconds?: number
