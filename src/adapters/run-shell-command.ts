@@ -14,7 +14,7 @@ export interface RunningCommand {
 export function runShellCommand(
   command: string,
   shell: string,
-  spawnFn = spawn,
+  spawnFn: typeof spawn = spawn,
 ): RunningCommand {
   const child = spawnFn(command, {
     shell,

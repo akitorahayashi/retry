@@ -1,5 +1,6 @@
 import { resolve } from 'node:path'
 import { EventEmitter } from 'node:events'
+import type { spawn } from 'node:child_process'
 import { describe, expect, it, vi } from 'vitest'
 import { runShellCommand } from '../../src/adapters/run-shell-command'
 
@@ -31,27 +32,25 @@ describe('runShellCommand', () => {
   })
 
   it('throws an error if the process fails to start and has no pid', () => {
-    const mockSpawn = vi.fn().mockImplementationOnce(() => {
+    const mockSpawn = vi.fn<typeof spawn>().mockImplementationOnce(() => {
       // biome-ignore lint/suspicious/noExplicitAny: mocking child process return
       return { pid: undefined } as any
     })
 
-    expect(() =>
-      // biome-ignore lint/suspicious/noExplicitAny: passing mocked spawn
-      runShellCommand('echo test', 'bash', mockSpawn as any),
-    ).toThrow('Failed to start command process.')
+    expect(() => runShellCommand('echo test', 'bash', mockSpawn)).toThrow(
+      'Failed to start command process.',
+    )
   })
 
   it('throws an error if spawn itself throws', () => {
     const spawnError = new Error('spawn failed')
-    const mockSpawn = vi.fn().mockImplementationOnce(() => {
+    const mockSpawn = vi.fn<typeof spawn>().mockImplementationOnce(() => {
       throw spawnError
     })
 
-    expect(() =>
-      // biome-ignore lint/suspicious/noExplicitAny: passing mocked spawn
-      runShellCommand('echo test', 'bash', mockSpawn as any),
-    ).toThrow(spawnError)
+    expect(() => runShellCommand('echo test', 'bash', mockSpawn)).toThrow(
+      spawnError,
+    )
   })
 
   it('rejects the completion promise if the child process emits an error', async () => {
@@ -61,10 +60,11 @@ describe('runShellCommand', () => {
     emitter.stdout = new EventEmitter()
     emitter.stderr = new EventEmitter()
 
-    const mockSpawn = vi.fn().mockImplementationOnce(() => emitter)
+    const mockSpawn = vi
+      .fn<typeof spawn>()
+      .mockImplementationOnce(() => emitter)
 
-    // biome-ignore lint/suspicious/noExplicitAny: passing mocked spawn
-    const running = runShellCommand('echo test', 'bash', mockSpawn as any)
+    const running = runShellCommand('echo test', 'bash', mockSpawn)
 
     const error = new Error('async error')
     emitter.emit('error', error)
