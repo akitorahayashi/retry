@@ -21,37 +21,6 @@ The action owns:
     retry_delay_seconds: '5'
 ```
 
-## Action Contract
-
-Inputs:
-
-- `command` (required)
-- `max_attempts` (required)
-- `shell` (optional, default: `bash`)
-- `timeout_seconds` (optional)
-- `retry_delay_seconds` (optional, default: `'0'`)
-- `retry_delay_schedule_seconds` (optional)
-- `retry_on` (optional, `any | error | timeout`, default: `any`)
-- `retry_on_exit_codes` (optional)
-- `continue_on_error` (optional, default: `false`)
-- `termination_grace_seconds` (optional, default: `'5'`)
-
-Outputs:
-
-- `attempts`
-- `final_exit_code`
-- `final_outcome`
-- `succeeded`
-- `final_stdout`
-
-## Runtime Flow
-
-1. Read and validate retry action inputs.
-2. Execute one command attempt.
-3. Apply timeout, termination, and retry policy.
-4. Wait between attempts when retries are allowed.
-5. Emit final outputs describing outcome, attempts, and final stdout.
-
 ## Documentation
 
 - [Usage](docs/usage.md)

@@ -7,6 +7,12 @@ Tests are under `tests/`.
 Documentation is under `docs/`.
 Automation is under `.github/workflows/`.
 
+## Documentation Routing
+
+- [Usage](docs/usage.md): workflow examples and outputs
+- [Architecture Boundary](docs/architecture/boundary.md): runtime boundaries and flow
+- [Action Inputs](docs/configuration/inputs.md): input and output reference
+
 ## Repository Layout
 
 `action.yml` defines action inputs and outputs.

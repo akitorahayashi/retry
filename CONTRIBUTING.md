@@ -36,7 +36,3 @@ Release automation on `main` runs `npm run package`, commits `dist/` when change
 
 The repository versions one action. Consumer-facing tags follow `vX.Y.Z`, and the moving major tag for workflows is `v1`.
 Release automation is manually dispatched with an `X.Y.Z` input, validates it on `main`, creates `vX.Y.Z`, moves `v1`, and publishes the GitHub Release.
-
-## Documentation
-
-`README.md` is the public front door. `docs/` owns task-oriented usage, durable architecture, and configuration reference surfaces.
