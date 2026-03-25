@@ -43,3 +43,8 @@ The action fails explicitly when:
 - attempts are exhausted and `continue_on_error` is not enabled
 
 No silent fallback paths are used.
+
+## Distribution Boundary
+
+`dist/` is committed because GitHub Actions executes repository contents directly from the tagged revision. Normal development changes do not update `dist/`.
+Release automation on `main` runs `npm run package`, commits `dist/` when changed, and then creates release tags.
