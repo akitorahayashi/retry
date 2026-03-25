@@ -3,7 +3,6 @@ import {
   runShellCommand,
   type RunningCommand,
 } from '../../adapters/run-shell-command'
-import { sleep } from '../../adapters/sleep'
 import { terminateProcessTree } from '../../adapters/terminate-process-tree'
 
 export interface ExecuteRetryDependencies {
@@ -12,13 +11,11 @@ export interface ExecuteRetryDependencies {
     promise: Promise<void>
     cancel: () => void
   }
-  sleep: (milliseconds: number) => Promise<void>
   terminateProcessTree: (pid: number, graceSeconds: number) => Promise<void>
 }
 
 export const executeRetryDependencies: ExecuteRetryDependencies = {
   runCommand: runShellCommand,
   delay,
-  sleep,
   terminateProcessTree,
 }

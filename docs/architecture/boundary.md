@@ -44,7 +44,7 @@ The action runtime executes this sequence:
 2. Execute one command attempt.
 3. Resolve outcome as `success`, `error`, or `timeout`.
 4. Apply retry policy and delay resolution.
-5. Emit final outputs with attempts, outcome, and exit code.
+5. Emit final outputs with attempts, outcome, exit code, and succeeded.
 
 ## Failure Invariants
 
