@@ -42,6 +42,7 @@ Outputs:
 - `final_exit_code`
 - `final_outcome`
 - `succeeded`
+- `final_stdout`
 
 ## Runtime Flow
 
@@ -49,7 +50,7 @@ Outputs:
 2. Execute one command attempt.
 3. Apply timeout, termination, and retry policy.
 4. Wait between attempts when retries are allowed.
-5. Emit final outputs describing outcome and attempts.
+5. Emit final outputs describing outcome, attempts, and final stdout.
 
 ## Documentation
 

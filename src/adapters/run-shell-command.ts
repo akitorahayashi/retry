@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 
 export interface CommandCompletion {
   exitCode: number | null
+  stdout: string
 }
 
 export interface RunningCommand {
@@ -25,6 +26,7 @@ export function runShellCommand(
   }
 
   child.stdout?.on('data', (chunk) => {
+    stdout += chunk.toString()
     try {
       process.stdout.write(chunk)
     } catch {
@@ -41,6 +43,7 @@ export function runShellCommand(
   })
 
   let running = true
+  let stdout = ''
 
   const completion = new Promise<CommandCompletion>((resolve, reject) => {
     child.once('error', (error) => {
@@ -50,7 +53,7 @@ export function runShellCommand(
 
     child.once('close', (exitCode) => {
       running = false
-      resolve({ exitCode })
+      resolve({ exitCode, stdout })
     })
   })
 

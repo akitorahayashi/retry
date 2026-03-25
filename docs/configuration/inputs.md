@@ -27,9 +27,9 @@ The action emits:
 | `final_exit_code` | Final command exit code, or empty when no code is available |
 | `final_outcome` | Final attempt outcome (`success`, `error`, `timeout`) |
 | `succeeded` | `true` when any attempt succeeded, otherwise `false` |
+| `final_stdout` | Stdout emitted by the final attempt |
 
 ## Boolean Semantics
 
 `continue_on_error` accepts `1`, `0`, `true`, `false`, `yes`, `no`, `on`, or `off`.
 Any other non-empty token fails input validation.
-

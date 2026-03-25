@@ -45,6 +45,8 @@ outputs:
     description: Final attempt outcome (success, error, timeout)
   succeeded:
     description: Whether the command eventually succeeded
+  final_stdout:
+    description: Stdout emitted by the final attempt
 runs:
   using: node24
   main: dist/index.js
