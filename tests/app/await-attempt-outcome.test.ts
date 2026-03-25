@@ -5,7 +5,7 @@ import {
 } from '../../src/app/execute-retry/await-attempt-outcome'
 import * as core from '@actions/core'
 import type { RunningCommand } from '../../src/adapters/run-shell-command'
-import type { CommandExecution } from '../../src/domain/command'
+import type { CommandSpec } from '../../src/domain/command'
 
 describe('awaitAttemptOutcome', () => {
   beforeEach(() => {
@@ -13,7 +13,7 @@ describe('awaitAttemptOutcome', () => {
   })
 
   it('returns success when process completes without timeout', async () => {
-    const command: CommandExecution = {
+    const command: CommandSpec = {
       command: 'echo "test"',
       timeoutSeconds: undefined,
       terminationGraceSeconds: 5,
@@ -39,7 +39,7 @@ describe('awaitAttemptOutcome', () => {
   })
 
   it('returns error when process completes with non-zero exit code without timeout', async () => {
-    const command: CommandExecution = {
+    const command: CommandSpec = {
       command: 'exit 1',
       timeoutSeconds: undefined,
       terminationGraceSeconds: 5,
@@ -69,7 +69,7 @@ describe('awaitAttemptOutcome', () => {
   })
 
   it('returns success when process completes before timeout', async () => {
-    const command: CommandExecution = {
+    const command: CommandSpec = {
       command: 'echo "test"',
       timeoutSeconds: 10,
       terminationGraceSeconds: 5,
@@ -104,7 +104,7 @@ describe('awaitAttemptOutcome', () => {
   })
 
   it('terminates process tree when timeout is reached', async () => {
-    const command: CommandExecution = {
+    const command: CommandSpec = {
       command: 'sleep 10',
       timeoutSeconds: 1,
       terminationGraceSeconds: 5,
@@ -175,7 +175,7 @@ describe('awaitAttemptOutcome', () => {
   })
 
   it('logs error when terminateProcessTree fails and continues to wait for completion', async () => {
-    const command: CommandExecution = {
+    const command: CommandSpec = {
       command: 'sleep 10',
       timeoutSeconds: 1,
       terminationGraceSeconds: 5,
@@ -232,7 +232,7 @@ describe('awaitAttemptOutcome', () => {
   })
 
   it('logs raw non-Error object when terminateProcessTree fails', async () => {
-    const command: CommandExecution = {
+    const command: CommandSpec = {
       command: 'sleep 10',
       timeoutSeconds: 1,
       terminationGraceSeconds: 5,
@@ -285,7 +285,7 @@ describe('awaitAttemptOutcome', () => {
   })
 
   it('returns a safe outcome without exit code if termination fallback timeout triggers', async () => {
-    const command: CommandExecution = {
+    const command: CommandSpec = {
       command: 'sleep 10',
       timeoutSeconds: 1,
       terminationGraceSeconds: 5,

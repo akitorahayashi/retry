@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import type { CommandExecution } from '../../domain/command'
+import type { CommandSpec } from '../../domain/command'
 import type { RetryPolicy } from '../../domain/policy'
 import { shouldRetryFailure } from '../../domain/policy'
 import type { AttemptResult, FinalResult } from '../../domain/result'
@@ -16,7 +16,7 @@ import { executeAttempt } from './execute-attempt'
 import { formatExitCode } from './format-exit-code'
 
 export interface ExecuteRetryRequest {
-  command: CommandExecution
+  command: CommandSpec
   policy: RetryPolicy
   schedule: RetrySchedule
   maxAttempts: number
