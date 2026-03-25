@@ -18,11 +18,13 @@ describe('sanitizeCommand', () => {
     expect(sanitizeCommand('echo hello world')).toBe('echo [+2 args]')
   })
 
-  it('returns the basename and argument count for a path command with arguments', () => {
+  it('returns the basename and whitespace-based argument count for a path command with arguments', () => {
+    // Note: Simple whitespace split counts 3 args instead of 2 because of quotes.
     expect(sanitizeCommand('/bin/bash -c "echo hello"')).toBe('bash [+3 args]')
   })
 
-  it('returns the basename and argument count for a windows path command with arguments', () => {
+  it('returns the basename and whitespace-based argument count for a windows path command with arguments', () => {
+    // Note: Simple whitespace split counts 3 args instead of 2 because of quotes.
     expect(
       sanitizeCommand('C:\\Windows\\System32\\cmd.exe /c "echo hello"'),
     ).toBe('cmd.exe [+3 args]')
