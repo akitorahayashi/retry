@@ -26,12 +26,6 @@ export async function executeRetry(
   request: ExecuteRetryRequest,
   dependencies: ExecuteRetryDependencies = executeRetryDependencies,
 ): Promise<FinalResult> {
-  if (!Number.isInteger(request.maxAttempts) || request.maxAttempts <= 0) {
-    throw new Error(
-      `ExecuteRetryRequest.maxAttempts must be a positive integer, but received: ${request.maxAttempts}`,
-    )
-  }
-
   const { policy, schedule } = request
 
   let finalAttempt: AttemptResult | undefined
