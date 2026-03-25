@@ -53,16 +53,16 @@ function completed(exitCode: number | null, stdout = ''): RunningCommand {
 
 function createNeverDelay() {
   return {
-    promise: new Promise<void>(() => {}),
+    promise: new Promise<void>(() => { }),
     cancel: vi.fn(),
   }
 }
 
 describe('executeRetry', () => {
   it('throws an error when finalAttempt is missing', async () => {
-    // We mock the maxAttempts property so it passes the integer validation
-    // but the loop does not run. We need to mock it returning > 0 for validation
-    // and > 0 for `request.maxAttempts > 0` check.
+    // Control maxAttempts reads to pass request validation and then force the
+    // retry loop condition to short-circuit, exercising the missing-finalAttempt
+    // defensive error path.
     const request = createRequest({ maxAttempts: 1 })
     Object.defineProperty(request, 'maxAttempts', {
       get: vi
