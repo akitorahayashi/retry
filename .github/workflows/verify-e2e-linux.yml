@@ -34,7 +34,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ "${{ steps.retry-success.outputs.succeeded }}" == "true" ]]
-          [[ "${{ steps.retry-success.outputs.final_outcome }}" == "success" ]]
+          [[ "${{ steps.retry-success.outputs.outcome }}" == "success" ]]
           [[ "${{ steps.retry-success.outputs.attempts }}" == "3" ]]
 
       - name: Retry Timeout Failures With Continue Mode
@@ -54,5 +54,5 @@ jobs:
         run: |
           set -euo pipefail
           [[ "${{ steps.retry-timeout.outputs.succeeded }}" == "false" ]]
-          [[ "${{ steps.retry-timeout.outputs.final_outcome }}" == "timeout" ]]
+          [[ "${{ steps.retry-timeout.outputs.outcome }}" == "timeout" ]]
           [[ "${{ steps.retry-timeout.outputs.attempts }}" == "2" ]]
