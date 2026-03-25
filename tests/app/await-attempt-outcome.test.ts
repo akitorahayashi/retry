@@ -59,7 +59,9 @@ describe('awaitAttemptOutcome', () => {
     // it expects or just skips the completion mapping.
     // Wait, the easiest way is to mock `completionPromise` inside the function?
     // We cannot. But we CAN mock `runningCommand.completion.then` directly!
+    // We assign vi.fn() to the 'then' property and disable the linter check
     runningCommand.completion = {
+      // biome-ignore lint/suspicious/noThenProperty: we are intentionally mocking a Promise
       then: vi.fn().mockResolvedValue({ type: 'timeout' }),
     } as unknown as Promise<{ exitCode: number | null; stdout: string }>
     const dependencies = {
