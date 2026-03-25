@@ -52,10 +52,10 @@ describe('action metadata contracts', () => {
     expect(Object.keys(action.outputs)).toEqual(
       expect.arrayContaining([
         'attempts',
-        'final_exit_code',
-        'final_outcome',
+        'exit_code',
+        'outcome',
         'succeeded',
-        'final_stdout',
+        'stdout',
       ]),
     )
   })

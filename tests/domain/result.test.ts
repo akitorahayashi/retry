@@ -12,10 +12,9 @@ describe('toFinalResult', () => {
       }),
     ).toEqual({
       attempts: 2,
-      finalExitCode: 0,
-      finalOutcome: 'success',
-      succeeded: true,
-      finalStdout: '{"ok":true}',
+      exitCode: 0,
+      outcome: 'success',
+      stdout: '{"ok":true}',
     })
   })
 
@@ -29,10 +28,9 @@ describe('toFinalResult', () => {
       }),
     ).toEqual({
       attempts: 3,
-      finalExitCode: null,
-      finalOutcome: 'timeout',
-      succeeded: false,
-      finalStdout: '',
+      exitCode: null,
+      outcome: 'timeout',
+      stdout: '',
     })
   })
 
@@ -46,10 +44,9 @@ describe('toFinalResult', () => {
       }),
     ).toEqual({
       attempts: 1,
-      finalExitCode: 17,
-      finalOutcome: 'error',
-      succeeded: false,
-      finalStdout: '',
+      exitCode: 17,
+      outcome: 'error',
+      stdout: '',
     })
   })
 })

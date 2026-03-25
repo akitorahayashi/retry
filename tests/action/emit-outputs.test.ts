@@ -12,16 +12,15 @@ describe('emitOutputs', () => {
 
     emitOutputs({
       attempts: 2,
-      finalExitCode: 0,
-      finalOutcome: 'success',
-      succeeded: true,
-      finalStdout: '{"ok":true}',
+      exitCode: 0,
+      outcome: 'success',
+      stdout: '{"ok":true}',
     })
 
     expect(setOutput).toHaveBeenCalledWith('attempts', 2)
-    expect(setOutput).toHaveBeenCalledWith('final_exit_code', '0')
-    expect(setOutput).toHaveBeenCalledWith('final_outcome', 'success')
+    expect(setOutput).toHaveBeenCalledWith('exit_code', '0')
+    expect(setOutput).toHaveBeenCalledWith('outcome', 'success')
     expect(setOutput).toHaveBeenCalledWith('succeeded', 'true')
-    expect(setOutput).toHaveBeenCalledWith('final_stdout', '{"ok":true}')
+    expect(setOutput).toHaveBeenCalledWith('stdout', '{"ok":true}')
   })
 })

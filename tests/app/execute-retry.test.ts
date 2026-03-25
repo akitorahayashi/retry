@@ -100,10 +100,9 @@ describe('executeRetry', () => {
     expect(terminateProcessTree).toHaveBeenCalledWith(100, 2)
     expect(result).toEqual({
       attempts: 1,
-      finalExitCode: null,
-      finalOutcome: 'timeout',
-      succeeded: false,
-      finalStdout: '',
+      exitCode: null,
+      outcome: 'timeout',
+      stdout: '',
     })
   })
 
@@ -180,10 +179,9 @@ describe('executeRetry', () => {
     expect(runCommand).toHaveBeenCalledTimes(2)
     expect(result).toEqual({
       attempts: 2,
-      finalExitCode: 0,
-      finalOutcome: 'success',
-      succeeded: true,
-      finalStdout: '{"ok":true}',
+      exitCode: 0,
+      outcome: 'success',
+      stdout: '{"ok":true}',
     })
   })
 
@@ -202,10 +200,9 @@ describe('executeRetry', () => {
     expect(runCommand).toHaveBeenCalledTimes(1)
     expect(result).toEqual({
       attempts: 1,
-      finalExitCode: 9,
-      finalOutcome: 'error',
-      succeeded: false,
-      finalStdout: '',
+      exitCode: 9,
+      outcome: 'error',
+      stdout: '',
     })
   })
 
@@ -227,10 +224,9 @@ describe('executeRetry', () => {
     expect(runCommand).toHaveBeenCalledTimes(2)
     expect(result).toEqual({
       attempts: 2,
-      finalExitCode: 3,
-      finalOutcome: 'error',
-      succeeded: false,
-      finalStdout: '',
+      exitCode: 3,
+      outcome: 'error',
+      stdout: '',
     })
   })
 
@@ -288,10 +284,9 @@ describe('executeRetry', () => {
     expect(runCommand).toHaveBeenCalledTimes(2)
     expect(result).toEqual({
       attempts: 2,
-      finalExitCode: 0,
-      finalOutcome: 'success',
-      succeeded: true,
-      finalStdout: '{"recovered":true}',
+      exitCode: 0,
+      outcome: 'success',
+      stdout: '{"recovered":true}',
     })
   })
 
@@ -314,10 +309,9 @@ describe('executeRetry', () => {
     expect(runCommand).toHaveBeenCalledTimes(2)
     expect(result).toEqual({
       attempts: 2,
-      finalExitCode: 0,
-      finalOutcome: 'success',
-      succeeded: true,
-      finalStdout: '{"recovered":true}',
+      exitCode: 0,
+      outcome: 'success',
+      stdout: '{"recovered":true}',
     })
   })
 })

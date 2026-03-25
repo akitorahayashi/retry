@@ -39,9 +39,29 @@ export async function executeAttempt(
 
     logAttemptCompletion(attempt, result.outcome, result.exitCode)
 
+    // result.outcome might be 'success', 'error' or 'timeout'
+    // but TypeScript needs us to assert the full type since AttemptResult is a discriminated union
+    if (result.outcome === 'success') {
+      return {
+        attempt,
+        outcome: 'success',
+        exitCode: result.exitCode as number,
+        stdout: result.stdout,
+      }
+    }
+
+    if (result.outcome === 'timeout') {
+      return {
+        attempt,
+        outcome: 'timeout',
+        exitCode: null,
+        stdout: result.stdout,
+      }
+    }
+
     return {
       attempt,
-      outcome: result.outcome,
+      outcome: 'error',
       exitCode: result.exitCode,
       stdout: result.stdout,
     }

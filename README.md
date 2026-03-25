@@ -8,7 +8,7 @@ The action owns:
 - per-attempt timeout control
 - retry delays (fixed and schedule-based)
 - retry decision by failure class and exit-code filters
-- explicit outputs for final execution outcome
+- explicit outputs for execution outcome
 
 ## Quick Start
 

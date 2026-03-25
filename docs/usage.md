@@ -27,9 +27,9 @@ This configuration retries non-zero command failures up to three attempts.
 
 - run: |
     set -euo pipefail
-    echo "$FINAL_STDOUT"
+    echo "$STDOUT"
   env:
-    FINAL_STDOUT: ${{ steps.run.outputs.final_stdout }}
+    STDOUT: ${{ steps.run.outputs.stdout }}
 
 ```
 

@@ -25686,9 +25686,10 @@ exports.emitOutputs = emitOutputs;
 const core = __importStar(__nccwpck_require__(7484));
 function emitOutputs(result) {
     core.setOutput('attempts', result.attempts);
-    core.setOutput('final_exit_code', result.finalExitCode === null ? '' : String(result.finalExitCode));
-    core.setOutput('final_outcome', result.finalOutcome);
-    core.setOutput('succeeded', String(result.succeeded));
+    core.setOutput('exit_code', result.exitCode === null ? '' : String(result.exitCode));
+    core.setOutput('outcome', result.outcome);
+    core.setOutput('succeeded', String(result.outcome === 'success'));
+    core.setOutput('stdout', result.stdout);
 }
 
 
@@ -25878,6 +25879,7 @@ function runShellCommand(command, shell) {
         throw new Error('Failed to start command process.');
     }
     child.stdout?.on('data', (chunk) => {
+        stdout += chunk.toString();
         try {
             process.stdout.write(chunk);
         }
@@ -25894,6 +25896,7 @@ function runShellCommand(command, shell) {
         }
     });
     let running = true;
+    let stdout = '';
     const completion = new Promise((resolve, reject) => {
         child.once('error', (error) => {
             running = false;
@@ -25901,7 +25904,7 @@ function runShellCommand(command, shell) {
         });
         child.once('close', (exitCode) => {
             running = false;
-            resolve({ exitCode });
+            resolve({ exitCode, stdout });
         });
     });
     return {
@@ -25909,22 +25912,6 @@ function runShellCommand(command, shell) {
         completion,
         isRunning: () => running,
     };
-}
-
-
-/***/ }),
-
-/***/ 5991:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.sleep = sleep;
-function sleep(milliseconds) {
-    return new Promise((resolve) => {
-        setTimeout(resolve, milliseconds);
-    });
 }
 
 
@@ -25977,7 +25964,257 @@ function wait(milliseconds) {
 
 /***/ }),
 
-/***/ 5167:
+/***/ 4691:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.awaitAttemptOutcome = awaitAttemptOutcome;
+exports.logAttemptCompletion = logAttemptCompletion;
+const core = __importStar(__nccwpck_require__(7484));
+const format_exit_code_1 = __nccwpck_require__(3686);
+async function awaitAttemptOutcome(command, attempt, runningCommand, dependencies) {
+    const completionPromise = runningCommand.completion.then((completion) => ({
+        type: 'completion',
+        exitCode: completion.exitCode,
+        stdout: completion.stdout,
+    }));
+    if (command.timeoutSeconds === undefined) {
+        const completion = await completionPromise;
+        return {
+            outcome: completion.exitCode === 0 ? 'success' : 'error',
+            exitCode: completion.exitCode,
+            stdout: completion.stdout,
+        };
+    }
+    const timeout = dependencies.delay(command.timeoutSeconds * 1000);
+    try {
+        const result = await Promise.race([
+            completionPromise,
+            timeout.promise.then(() => ({ type: 'timeout' })),
+        ]);
+        if (result.type === 'completion') {
+            return {
+                outcome: result.exitCode === 0 ? 'success' : 'error',
+                exitCode: result.exitCode,
+                stdout: result.stdout,
+            };
+        }
+        core.warning(`Attempt ${attempt} timed out after ${command.timeoutSeconds}s.`);
+        try {
+            await dependencies.terminateProcessTree(runningCommand.pid, command.terminationGraceSeconds);
+        }
+        catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            core.error(`Failed timeout termination pid=${runningCommand.pid} grace=${command.terminationGraceSeconds}s: ${message}`);
+        }
+        const terminationTimeout = dependencies.delay(5000);
+        try {
+            const finalCompletion = await Promise.race([
+                runningCommand.completion.then((res) => ({
+                    type: 'completion',
+                    ...res,
+                })),
+                terminationTimeout.promise.then(() => ({ type: 'timeout' })),
+            ]);
+            if (finalCompletion.type === 'timeout') {
+                core.warning(`Process pid=${runningCommand.pid} failed to complete after termination. Returning safe outcome.`);
+                return {
+                    outcome: 'timeout',
+                    exitCode: null,
+                    stdout: '',
+                };
+            }
+            return {
+                outcome: 'timeout',
+                exitCode: finalCompletion.exitCode,
+                stdout: finalCompletion.stdout,
+            };
+        }
+        finally {
+            terminationTimeout.cancel();
+        }
+    }
+    finally {
+        timeout.cancel();
+    }
+}
+function logAttemptCompletion(attempt, outcome, exitCode) {
+    core.info(`Attempt ${attempt} completed with outcome=${outcome} exitCode=${(0, format_exit_code_1.formatExitCode)(exitCode)}`);
+}
+
+
+/***/ }),
+
+/***/ 9739:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.sanitizeCommand = void 0;
+exports.executeAttempt = executeAttempt;
+const core = __importStar(__nccwpck_require__(7484));
+const await_attempt_outcome_1 = __nccwpck_require__(4691);
+const terminate_command_on_signal_1 = __nccwpck_require__(9530);
+const sanitize_command_1 = __nccwpck_require__(1329);
+Object.defineProperty(exports, "sanitizeCommand", ({ enumerable: true, get: function () { return sanitize_command_1.sanitizeCommand; } }));
+async function executeAttempt(command, attempt, dependencies) {
+    core.info(`Running command: ${(0, sanitize_command_1.sanitizeCommand)(command.command)}`);
+    let runningCommand;
+    const cleanupSignalHandlers = (0, terminate_command_on_signal_1.registerCommandTerminationOnSignal)({
+        getRunningCommand: () => runningCommand,
+        terminationGraceSeconds: command.terminationGraceSeconds,
+        terminateProcessTree: dependencies.terminateProcessTree,
+    });
+    try {
+        runningCommand = dependencies.runCommand(command.command, command.shell);
+        const result = await (0, await_attempt_outcome_1.awaitAttemptOutcome)(command, attempt, runningCommand, dependencies);
+        (0, await_attempt_outcome_1.logAttemptCompletion)(attempt, result.outcome, result.exitCode);
+        // result.outcome might be 'success', 'error' or 'timeout'
+        // but TypeScript needs us to assert the full type since AttemptResult is a discriminated union
+        if (result.outcome === 'success') {
+            return {
+                attempt,
+                outcome: 'success',
+                exitCode: result.exitCode,
+                stdout: result.stdout,
+            };
+        }
+        if (result.outcome === 'timeout') {
+            return {
+                attempt,
+                outcome: 'timeout',
+                exitCode: null,
+                stdout: result.stdout,
+            };
+        }
+        return {
+            attempt,
+            outcome: 'error',
+            exitCode: result.exitCode,
+            stdout: result.stdout,
+        };
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        core.error(`Attempt ${attempt} failed to execute command: ${message}`);
+        return {
+            attempt,
+            outcome: 'error',
+            exitCode: null,
+            stdout: '',
+        };
+    }
+    finally {
+        cleanupSignalHandlers();
+    }
+}
+
+
+/***/ }),
+
+/***/ 2460:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.executeRetryDependencies = void 0;
+const delay_1 = __nccwpck_require__(3715);
+const run_shell_command_1 = __nccwpck_require__(8758);
+const terminate_process_tree_1 = __nccwpck_require__(5680);
+exports.executeRetryDependencies = {
+    runCommand: run_shell_command_1.runShellCommand,
+    delay: delay_1.delay,
+    terminateProcessTree: terminate_process_tree_1.terminateProcessTree,
+};
+
+
+/***/ }),
+
+/***/ 3686:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.formatExitCode = formatExitCode;
+function formatExitCode(exitCode) {
+    return exitCode === null ? 'none' : String(exitCode);
+}
+
+
+/***/ }),
+
+/***/ 1179:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
@@ -26018,47 +26255,35 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.executeRetry = executeRetry;
 const core = __importStar(__nccwpck_require__(7484));
-const run_shell_command_1 = __nccwpck_require__(8758);
-const delay_1 = __nccwpck_require__(3715);
-const sleep_1 = __nccwpck_require__(5991);
-const terminate_process_tree_1 = __nccwpck_require__(5680);
 const policy_1 = __nccwpck_require__(4596);
 const result_1 = __nccwpck_require__(635);
 const schedule_1 = __nccwpck_require__(5579);
-const runtimeDependencies = {
-    runCommand: run_shell_command_1.runShellCommand,
-    delay: delay_1.delay,
-    sleep: sleep_1.sleep,
-    terminateProcessTree: terminate_process_tree_1.terminateProcessTree,
-};
-async function executeRetry(params, dependencies = runtimeDependencies) {
-    const policy = {
-        retryOn: params.retryOn,
-        retryOnExitCodes: params.retryOnExitCodes,
-    };
-    const schedule = {
-        retryDelaySeconds: params.retryDelaySeconds,
-        retryDelayScheduleSeconds: params.retryDelayScheduleSeconds,
-    };
+const execute_retry_dependencies_1 = __nccwpck_require__(2460);
+const execute_attempt_1 = __nccwpck_require__(9739);
+const format_exit_code_1 = __nccwpck_require__(3686);
+async function executeRetry(request, dependencies = execute_retry_dependencies_1.executeRetryDependencies) {
+    if (!Number.isInteger(request.maxAttempts) || request.maxAttempts <= 0) {
+        throw new Error(`ExecuteRetryRequest.maxAttempts must be a positive integer, but received: ${request.maxAttempts}`);
+    }
+    const { policy, schedule } = request;
     let finalAttempt;
-    for (let attempt = 1; attempt <= params.maxAttempts; attempt += 1) {
-        finalAttempt = await core.group(`Attempt ${attempt}/${params.maxAttempts}`, async () => runAttempt(params, attempt, dependencies));
+    for (let attempt = 1; attempt <= request.maxAttempts; attempt += 1) {
+        finalAttempt = await core.group(`Attempt ${attempt}/${request.maxAttempts}`, async () => (0, execute_attempt_1.executeAttempt)(request.command, attempt, dependencies));
         if (finalAttempt.outcome === 'success') {
             return (0, result_1.toFinalResult)(finalAttempt);
         }
-        if (attempt >= params.maxAttempts) {
+        if (attempt === request.maxAttempts) {
             return (0, result_1.toFinalResult)(finalAttempt);
         }
-        const retryable = (0, policy_1.shouldRetryFailure)(finalAttempt.outcome, finalAttempt.exitCode, policy);
-        if (!retryable) {
+        if (!(0, policy_1.shouldRetryFailure)(finalAttempt.outcome, finalAttempt.exitCode, policy)) {
             core.info('Failure is outside retry policy. Stopping without additional retries.');
             return (0, result_1.toFinalResult)(finalAttempt);
         }
         const delaySeconds = (0, schedule_1.resolveRetryDelaySeconds)(attempt, schedule);
-        core.warning(`Attempt ${attempt} failed with ${finalAttempt.outcome} (exit code: ${formatExitCode(finalAttempt.exitCode)}). Retrying.`);
+        core.warning(`Attempt ${attempt} failed with ${finalAttempt.outcome} (exit code: ${(0, format_exit_code_1.formatExitCode)(finalAttempt.exitCode)}). Retrying.`);
         if (delaySeconds > 0) {
             core.info(`Waiting ${delaySeconds}s before next attempt.`);
-            await dependencies.sleep(delaySeconds * 1000);
+            await dependencies.delay(delaySeconds * 1000).promise;
         }
     }
     if (!finalAttempt) {
@@ -26066,95 +26291,120 @@ async function executeRetry(params, dependencies = runtimeDependencies) {
     }
     return (0, result_1.toFinalResult)(finalAttempt);
 }
-async function runAttempt(command, attempt, dependencies) {
-    core.info(`Running command: ${command.command}`);
-    let running;
-    let timeoutCancel;
+
+
+/***/ }),
+
+/***/ 1329:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.sanitizeCommand = sanitizeCommand;
+function sanitizeCommand(command) {
+    // Simple whitespace split for argument counting.
+    // This does not handle quoted arguments as a single unit.
+    const parts = command.trim().split(/\s+/);
+    if (parts.length === 0 || !parts[0]) {
+        return '<empty>';
+    }
+    const executablePath = parts[0];
+    const basename = executablePath.split(/[/\\]/).pop() ?? executablePath;
+    const argsCount = parts.length - 1;
+    if (argsCount === 0) {
+        return basename;
+    }
+    return `${basename} [+${argsCount} args]`;
+}
+
+
+/***/ }),
+
+/***/ 9530:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.registerCommandTerminationOnSignal = registerCommandTerminationOnSignal;
+const core = __importStar(__nccwpck_require__(7484));
+function registerCommandTerminationOnSignal(params) {
     const onSignal = async (signal) => {
-        if (running?.isRunning()) {
-            core.warning(`Received ${signal}. Terminating active command process tree.`);
-            try {
-                await dependencies.terminateProcessTree(running.pid, command.terminationGraceSeconds);
-            }
-            catch (error) {
-                const message = error instanceof Error ? error.message : String(error);
-                core.error(`Failed to terminate process tree pid=${running.pid} grace=${command.terminationGraceSeconds}s signal=${signal}: ${message}`);
-            }
+        const runningCommand = params.getRunningCommand();
+        if (!runningCommand?.isRunning()) {
+            return;
+        }
+        core.warning(`Received ${signal}. Terminating active command process tree.`);
+        try {
+            await params.terminateProcessTree(runningCommand.pid, params.terminationGraceSeconds);
+        }
+        catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            core.error(`Failed to terminate process tree pid=${runningCommand.pid} grace=${params.terminationGraceSeconds}s signal=${signal}: ${message}`);
         }
     };
     const onSigterm = () => {
-        onSignal('SIGTERM').catch((error) => {
+        onSignal('SIGTERM')
+            .then(() => {
+            process.exit(0);
+        })
+            .catch((error) => {
             const message = error instanceof Error ? error.message : String(error);
             core.error(`SIGTERM handler failed: ${message}`);
+            process.exit(1);
         });
     };
     const onSigint = () => {
-        onSignal('SIGINT').catch((error) => {
+        onSignal('SIGINT')
+            .then(() => {
+            process.exit(0);
+        })
+            .catch((error) => {
             const message = error instanceof Error ? error.message : String(error);
             core.error(`SIGINT handler failed: ${message}`);
+            process.exit(1);
         });
     };
     process.once('SIGTERM', onSigterm);
     process.once('SIGINT', onSigint);
-    try {
-        running = dependencies.runCommand(command.command, command.shell);
-        const completionPromise = running.completion.then((completion) => ({
-            type: 'completion',
-            completion,
-        }));
-        let racePromise = completionPromise;
-        if (command.timeoutSeconds !== undefined) {
-            const timeout = dependencies.delay(command.timeoutSeconds * 1000);
-            timeoutCancel = timeout.cancel;
-            const timeoutPromise = timeout.promise.then(() => ({
-                type: 'timeout',
-            }));
-            racePromise = Promise.race([completionPromise, timeoutPromise]);
-        }
-        const result = await racePromise;
-        if (result.type === 'timeout') {
-            core.warning(`Attempt ${attempt} timed out after ${command.timeoutSeconds}s.`);
-            try {
-                await dependencies.terminateProcessTree(running.pid, command.terminationGraceSeconds);
-            }
-            catch (error) {
-                const message = error instanceof Error ? error.message : String(error);
-                core.error(`Failed timeout termination pid=${running.pid} grace=${command.terminationGraceSeconds}s: ${message}`);
-            }
-            const completion = await running.completion;
-            return {
-                attempt,
-                outcome: 'timeout',
-                exitCode: completion.exitCode,
-            };
-        }
-        const outcome = result.completion.exitCode === 0 ? 'success' : 'error';
-        core.info(`Attempt ${attempt} completed with outcome=${outcome} exitCode=${formatExitCode(result.completion.exitCode)}`);
-        return {
-            attempt,
-            outcome,
-            exitCode: result.completion.exitCode,
-        };
-    }
-    catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        core.error(`Attempt ${attempt} failed to execute command: ${message}`);
-        return {
-            attempt,
-            outcome: 'error',
-            exitCode: null,
-        };
-    }
-    finally {
-        if (timeoutCancel) {
-            timeoutCancel();
-        }
+    return () => {
         process.off('SIGTERM', onSigterm);
         process.off('SIGINT', onSigint);
-    }
-}
-function formatExitCode(exitCode) {
-    return exitCode === null ? 'none' : String(exitCode);
+    };
 }
 
 
@@ -26205,12 +26455,29 @@ function shouldRetryFailure(outcome, exitCode, policy) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.toFinalResult = toFinalResult;
 function toFinalResult(result) {
-    return {
-        attempts: result.attempt,
-        finalExitCode: result.exitCode,
-        finalOutcome: result.outcome,
-        succeeded: result.outcome === 'success',
-    };
+    switch (result.outcome) {
+        case 'success':
+            return {
+                attempts: result.attempt,
+                outcome: result.outcome,
+                exitCode: result.exitCode,
+                stdout: result.stdout,
+            };
+        case 'error':
+            return {
+                attempts: result.attempt,
+                outcome: result.outcome,
+                exitCode: result.exitCode,
+                stdout: result.stdout,
+            };
+        case 'timeout':
+            return {
+                attempts: result.attempt,
+                outcome: result.outcome,
+                exitCode: result.exitCode,
+                stdout: result.stdout,
+            };
+    }
 }
 
 
@@ -26276,13 +26543,29 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7484));
 const emit_outputs_1 = __nccwpck_require__(8340);
 const read_inputs_1 = __nccwpck_require__(2316);
-const execute_retry_1 = __nccwpck_require__(5167);
+const execute_retry_1 = __nccwpck_require__(1179);
 async function run() {
     const request = (0, read_inputs_1.readInputs)();
-    const result = await (0, execute_retry_1.executeRetry)(request);
+    const result = await (0, execute_retry_1.executeRetry)({
+        command: {
+            command: request.command,
+            shell: request.shell,
+            timeoutSeconds: request.timeoutSeconds,
+            terminationGraceSeconds: request.terminationGraceSeconds,
+        },
+        policy: {
+            retryOn: request.retryOn,
+            retryOnExitCodes: request.retryOnExitCodes,
+        },
+        schedule: {
+            retryDelaySeconds: request.retryDelaySeconds,
+            retryDelayScheduleSeconds: request.retryDelayScheduleSeconds,
+        },
+        maxAttempts: request.maxAttempts,
+    });
     (0, emit_outputs_1.emitOutputs)(result);
-    if (!result.succeeded && !request.continueOnError) {
-        core.setFailed(`Command failed after ${result.attempts} attempts. final_outcome=${result.finalOutcome} final_exit_code=${result.finalExitCode ?? 'none'}`);
+    if (result.outcome !== 'success' && !request.continueOnError) {
+        core.setFailed(`Command failed after ${result.attempts} attempts. outcome=${result.outcome} exit_code=${result.exitCode ?? 'none'}`);
     }
 }
 if (require.main === require.cache[eval('__filename')]) {

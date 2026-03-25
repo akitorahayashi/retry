@@ -4,10 +4,10 @@ import type { FinalResult } from '../domain/result'
 export function emitOutputs(result: FinalResult): void {
   core.setOutput('attempts', result.attempts)
   core.setOutput(
-    'final_exit_code',
-    result.finalExitCode === null ? '' : String(result.finalExitCode),
+    'exit_code',
+    result.exitCode === null ? '' : String(result.exitCode),
   )
-  core.setOutput('final_outcome', result.finalOutcome)
-  core.setOutput('succeeded', String(result.succeeded))
-  core.setOutput('final_stdout', result.finalStdout)
+  core.setOutput('outcome', result.outcome)
+  core.setOutput('succeeded', String(result.outcome === 'success'))
+  core.setOutput('stdout', result.stdout)
 }

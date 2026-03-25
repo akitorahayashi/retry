@@ -39,13 +39,13 @@ inputs:
 outputs:
   attempts:
     description: Number of attempts that executed
-  final_exit_code:
+  exit_code:
     description: Final command exit code when available
-  final_outcome:
+  outcome:
     description: Final attempt outcome (success, error, timeout)
   succeeded:
     description: Whether the command eventually succeeded
-  final_stdout:
+  stdout:
     description: Stdout emitted by the final attempt
 runs:
   using: node24

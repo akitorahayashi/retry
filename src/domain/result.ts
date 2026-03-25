@@ -1,26 +1,65 @@
-import type { AttemptOutcome } from './policy'
+export type AttemptResult =
+  | {
+      attempt: number
+      outcome: 'success'
+      exitCode: number
+      stdout: string
+    }
+  | {
+      attempt: number
+      outcome: 'error'
+      exitCode: number | null
+      stdout: string
+    }
+  | {
+      attempt: number
+      outcome: 'timeout'
+      exitCode: null
+      stdout: string
+    }
 
-export interface AttemptResult {
-  attempt: number
-  outcome: AttemptOutcome
-  exitCode: number | null
-  stdout: string
-}
-
-export interface FinalResult {
-  attempts: number
-  finalExitCode: number | null
-  finalOutcome: AttemptOutcome
-  succeeded: boolean
-  finalStdout: string
-}
+export type FinalResult =
+  | {
+      attempts: number
+      outcome: 'success'
+      exitCode: number
+      stdout: string
+    }
+  | {
+      attempts: number
+      outcome: 'error'
+      exitCode: number | null
+      stdout: string
+    }
+  | {
+      attempts: number
+      outcome: 'timeout'
+      exitCode: null
+      stdout: string
+    }
 
 export function toFinalResult(result: AttemptResult): FinalResult {
-  return {
-    attempts: result.attempt,
-    finalExitCode: result.exitCode,
-    finalOutcome: result.outcome,
-    succeeded: result.outcome === 'success',
-    finalStdout: result.stdout,
+  switch (result.outcome) {
+    case 'success':
+      return {
+        attempts: result.attempt,
+        outcome: result.outcome,
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+      }
+    case 'error':
+      return {
+        attempts: result.attempt,
+        outcome: result.outcome,
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+      }
+    case 'timeout':
+      return {
+        attempts: result.attempt,
+        outcome: result.outcome,
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+      }
   }
 }
