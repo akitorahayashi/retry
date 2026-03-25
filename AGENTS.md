@@ -9,7 +9,7 @@ Automation is under `.github/workflows/`.
 
 ## Documentation Routing
 
-- [Usage](docs/usage.md): workflow examples and outputs
+- [Usage](docs/guides/usage.md): workflow examples and outputs
 - [Architecture Boundary](docs/architecture/boundary.md): runtime boundaries and flow
 - [Action Inputs](docs/configuration/inputs.md): input and output reference
 

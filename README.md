@@ -23,6 +23,6 @@ The action owns:
 
 ## Documentation
 
-- [Usage](docs/usage.md)
+- [Usage](docs/guides/usage.md)
 - [Architecture Boundary](docs/architecture/boundary.md)
 - [Action Inputs](docs/configuration/inputs.md)

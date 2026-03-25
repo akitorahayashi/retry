@@ -13,7 +13,7 @@ The repository-owned end-to-end verification path targets Linux runners.
     max_attempts: '3'
 ```
 
-This configuration retries non-zero command failures up to three attempts.
+This configuration retries non-zero command failures and timeouts up to three attempts.
 
 ## Structured Output Example
 
