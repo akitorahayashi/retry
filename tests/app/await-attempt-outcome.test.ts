@@ -181,7 +181,7 @@ describe('awaitAttemptOutcome', () => {
     expect(cancelTerminationTimeout).toHaveBeenCalled()
   })
 
-  it('logs error when terminateProcessTree fails and continues to wait for completion', async () => {
+  it('throws when terminateProcessTree fails with Error', async () => {
     const command: CommandSpec = {
       command: 'sleep 10',
       shell: 'bash',
@@ -189,14 +189,8 @@ describe('awaitAttemptOutcome', () => {
       terminationGraceSeconds: 5,
     }
 
-    let resolveCompletion!: (value: {
-      exitCode: number
-      stdout: string
-    }) => void
     const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
-      (resolve) => {
-        resolveCompletion = resolve
-      },
+      () => {},
     )
 
     const runningCommand: RunningCommand = {
@@ -229,20 +223,12 @@ describe('awaitAttemptOutcome', () => {
 
     await new Promise(process.nextTick)
 
-    // Terminate tree failed, but we still expect to wait for the completion
     expect(dependencies.terminateProcessTree).toHaveBeenCalled()
 
-    resolveCompletion({ exitCode: 1, stdout: 'failed\n' })
-
-    const result = await attemptPromise
-    expect(result).toEqual({
-      outcome: 'timeout',
-      exitCode: 1,
-      stdout: 'failed\n',
-    })
+    await expect(attemptPromise).rejects.toThrow('Kill failed')
   })
 
-  it('logs raw non-Error object when terminateProcessTree fails', async () => {
+  it('throws when terminateProcessTree fails with a non-Error value', async () => {
     const command: CommandSpec = {
       command: 'sleep 10',
       shell: 'bash',
@@ -250,14 +236,8 @@ describe('awaitAttemptOutcome', () => {
       terminationGraceSeconds: 5,
     }
 
-    let resolveCompletion!: (value: {
-      exitCode: number
-      stdout: string
-    }) => void
     const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
-      (resolve) => {
-        resolveCompletion = resolve
-      },
+      () => {},
     )
 
     const runningCommand: RunningCommand = {
@@ -280,8 +260,6 @@ describe('awaitAttemptOutcome', () => {
       terminateProcessTree: vi.fn().mockRejectedValue('String error message'),
     }
 
-    const coreErrorSpy = vi.spyOn(core, 'error')
-
     const attemptPromise = awaitAttemptOutcome(
       command,
       1,
@@ -290,13 +268,7 @@ describe('awaitAttemptOutcome', () => {
     )
     await new Promise(process.nextTick)
 
-    resolveCompletion({ exitCode: 1, stdout: 'failed\n' })
-
-    await attemptPromise
-
-    expect(coreErrorSpy).toHaveBeenCalledWith(
-      'Failed timeout termination pid=1234 grace=5s: String error message',
-    )
+    await expect(attemptPromise).rejects.toBe('String error message')
   })
 
   it('returns a safe outcome without exit code if termination fallback timeout triggers', async () => {

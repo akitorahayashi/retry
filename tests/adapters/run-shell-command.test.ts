@@ -1,22 +1,12 @@
 import { resolve } from 'node:path'
-import { spawn } from 'node:child_process'
 import { EventEmitter } from 'node:events'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { runShellCommand } from '../../src/adapters/run-shell-command'
-
-vi.mock('node:child_process', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('node:child_process')>()
-  return {
-    ...actual,
-    spawn: vi.fn(actual.spawn),
-  }
-})
+import { describe, expect, it, vi } from 'vitest'
+import {
+  runShellCommand,
+  type SpawnFn,
+} from '../../src/adapters/run-shell-command'
 
 describe('runShellCommand', () => {
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
-
   it('returns zero exit code when command succeeds', async () => {
     const fixture = resolve(
       process.cwd(),
@@ -44,23 +34,25 @@ describe('runShellCommand', () => {
   })
 
   it('throws an error if the process fails to start and has no pid', () => {
-    vi.mocked(spawn).mockImplementationOnce(() => {
+    const mockSpawn = vi.fn<SpawnFn>().mockImplementationOnce(() => {
       // biome-ignore lint/suspicious/noExplicitAny: mocking child process return
       return { pid: undefined } as any
     })
 
-    expect(() => runShellCommand('echo test', 'bash')).toThrow(
+    expect(() => runShellCommand('echo test', 'bash', mockSpawn)).toThrow(
       'Failed to start command process.',
     )
   })
 
   it('throws an error if spawn itself throws', () => {
     const spawnError = new Error('spawn failed')
-    vi.mocked(spawn).mockImplementationOnce(() => {
+    const mockSpawn = vi.fn<SpawnFn>().mockImplementationOnce(() => {
       throw spawnError
     })
 
-    expect(() => runShellCommand('echo test', 'bash')).toThrow(spawnError)
+    expect(() => runShellCommand('echo test', 'bash', mockSpawn)).toThrow(
+      spawnError,
+    )
   })
 
   it('rejects the completion promise if the child process emits an error', async () => {
@@ -70,9 +62,9 @@ describe('runShellCommand', () => {
     emitter.stdout = new EventEmitter()
     emitter.stderr = new EventEmitter()
 
-    vi.mocked(spawn).mockImplementationOnce(() => emitter)
+    const mockSpawn = vi.fn<SpawnFn>().mockImplementationOnce(() => emitter)
 
-    const running = runShellCommand('echo test', 'bash')
+    const running = runShellCommand('echo test', 'bash', mockSpawn)
 
     const error = new Error('async error')
     emitter.emit('error', error)
