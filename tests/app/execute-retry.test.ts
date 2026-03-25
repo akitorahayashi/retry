@@ -66,11 +66,9 @@ describe('executeRetry', () => {
     const completionPromise = new Promise<{
       exitCode: number | null
       stdout: string
-    }>(
-      (resolve) => {
-        resolveCompletion = resolve
-      },
-    )
+    }>((resolve) => {
+      resolveCompletion = resolve
+    })
 
     const terminateProcessTree = vi.fn().mockImplementation(async () => {
       resolveCompletion({ exitCode: null, stdout: '' })
@@ -101,12 +99,12 @@ describe('executeRetry', () => {
 
     expect(terminateProcessTree).toHaveBeenCalledWith(100, 2)
     expect(result).toEqual({
-          attempts: 1,
-          finalExitCode: null,
-          finalOutcome: 'timeout',
-          succeeded: false,
-          finalStdout: '',
-        })
+      attempts: 1,
+      finalExitCode: null,
+      finalOutcome: 'timeout',
+      succeeded: false,
+      finalStdout: '',
+    })
   })
 
   it.each([
@@ -180,13 +178,13 @@ describe('executeRetry', () => {
     })
 
     expect(runCommand).toHaveBeenCalledTimes(2)
-      expect(result).toEqual({
-        attempts: 2,
-        finalExitCode: 0,
-        finalOutcome: 'success',
-        succeeded: true,
-        finalStdout: '{"ok":true}',
-      })
+    expect(result).toEqual({
+      attempts: 2,
+      finalExitCode: 0,
+      finalOutcome: 'success',
+      succeeded: true,
+      finalStdout: '{"ok":true}',
+    })
   })
 
   it('stops without retry when policy excludes error failures', async () => {
@@ -202,13 +200,13 @@ describe('executeRetry', () => {
     )
 
     expect(runCommand).toHaveBeenCalledTimes(1)
-      expect(result).toEqual({
-        attempts: 1,
-        finalExitCode: 9,
-        finalOutcome: 'error',
-        succeeded: false,
-        finalStdout: '',
-      })
+    expect(result).toEqual({
+      attempts: 1,
+      finalExitCode: 9,
+      finalOutcome: 'error',
+      succeeded: false,
+      finalStdout: '',
+    })
   })
 
   it('retries only configured exit codes when filter is provided', async () => {
@@ -227,13 +225,13 @@ describe('executeRetry', () => {
     )
 
     expect(runCommand).toHaveBeenCalledTimes(2)
-      expect(result).toEqual({
-        attempts: 2,
-        finalExitCode: 3,
-        finalOutcome: 'error',
-        succeeded: false,
-        finalStdout: '',
-      })
+    expect(result).toEqual({
+      attempts: 2,
+      finalExitCode: 3,
+      finalOutcome: 'error',
+      succeeded: false,
+      finalStdout: '',
+    })
   })
 
   it('applies scheduled retry delay values ahead of fixed delay', async () => {
@@ -288,13 +286,13 @@ describe('executeRetry', () => {
     })
 
     expect(runCommand).toHaveBeenCalledTimes(2)
-      expect(result).toEqual({
-        attempts: 2,
-        finalExitCode: 0,
-        finalOutcome: 'success',
-        succeeded: true,
-        finalStdout: '{"recovered":true}',
-      })
+    expect(result).toEqual({
+      attempts: 2,
+      finalExitCode: 0,
+      finalOutcome: 'success',
+      succeeded: true,
+      finalStdout: '{"recovered":true}',
+    })
   })
 
   it('treats promise rejections in runCommand completion as error outcome and retries', async () => {
@@ -302,9 +300,9 @@ describe('executeRetry', () => {
       .fn()
       .mockReturnValueOnce({
         pid: 101,
-          completion: Promise.reject(new Error('process crashed')),
-          isRunning: () => false,
-        })
+        completion: Promise.reject(new Error('process crashed')),
+        isRunning: () => false,
+      })
       .mockReturnValueOnce(completed(0, '{"recovered":true}'))
 
     const result = await executeRetry(createRequest({ maxAttempts: 2 }), {
@@ -314,12 +312,12 @@ describe('executeRetry', () => {
     })
 
     expect(runCommand).toHaveBeenCalledTimes(2)
-      expect(result).toEqual({
-        attempts: 2,
-        finalExitCode: 0,
-        finalOutcome: 'success',
-        succeeded: true,
-        finalStdout: '{"recovered":true}',
-      })
+    expect(result).toEqual({
+      attempts: 2,
+      finalExitCode: 0,
+      finalOutcome: 'success',
+      succeeded: true,
+      finalStdout: '{"recovered":true}',
+    })
   })
 })

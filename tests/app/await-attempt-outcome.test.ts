@@ -60,7 +60,11 @@ describe('awaitAttemptOutcome', () => {
       runningCommand,
       dependencies,
     )
-    expect(result).toEqual({ outcome: 'error', exitCode: 1, stdout: 'failed\n' })
+    expect(result).toEqual({
+      outcome: 'error',
+      exitCode: 1,
+      stdout: 'failed\n',
+    })
     expect(dependencies.delay).not.toHaveBeenCalled()
   })
 
@@ -108,7 +112,7 @@ describe('awaitAttemptOutcome', () => {
     let resolveCompletion: (value: { exitCode: number; stdout: string }) => void
     const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
       (resolve) => {
-      resolveCompletion = resolve
+        resolveCompletion = resolve
       },
     )
     const runningCommand: RunningCommand = {
@@ -161,7 +165,11 @@ describe('awaitAttemptOutcome', () => {
 
     const result = await attemptPromise
 
-    expect(result).toEqual({ outcome: 'timeout', exitCode: 143, stdout: 'partial\n' })
+    expect(result).toEqual({
+      outcome: 'timeout',
+      exitCode: 143,
+      stdout: 'partial\n',
+    })
     expect(cancelInitialTimeout).toHaveBeenCalled()
     expect(cancelTerminationTimeout).toHaveBeenCalled()
   })
@@ -176,7 +184,7 @@ describe('awaitAttemptOutcome', () => {
     let resolveCompletion: (value: { exitCode: number; stdout: string }) => void
     const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
       (resolve) => {
-      resolveCompletion = resolve
+        resolveCompletion = resolve
       },
     )
 
@@ -216,7 +224,11 @@ describe('awaitAttemptOutcome', () => {
     resolveCompletion?.({ exitCode: 1, stdout: 'failed\n' })
 
     const result = await attemptPromise
-    expect(result).toEqual({ outcome: 'timeout', exitCode: 1, stdout: 'failed\n' })
+    expect(result).toEqual({
+      outcome: 'timeout',
+      exitCode: 1,
+      stdout: 'failed\n',
+    })
   })
 
   it('logs raw non-Error object when terminateProcessTree fails', async () => {
@@ -229,7 +241,7 @@ describe('awaitAttemptOutcome', () => {
     let resolveCompletion: (value: { exitCode: number; stdout: string }) => void
     const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
       (resolve) => {
-      resolveCompletion = resolve
+        resolveCompletion = resolve
       },
     )
 
