@@ -10,7 +10,9 @@ interface RegisterCommandTerminationOnSignalParams {
 export function registerCommandTerminationOnSignal(
   params: RegisterCommandTerminationOnSignalParams,
 ): () => void {
-  const terminateCommandAndProcessTree = async (signal: NodeJS.Signals): Promise<void> => {
+  const terminateCommandAndProcessTree = async (
+    signal: NodeJS.Signals,
+  ): Promise<void> => {
     const runningCommand = params.getRunningCommand()
     if (!runningCommand?.isRunning()) {
       return
