@@ -229,9 +229,6 @@ describe('awaitAttemptOutcome', () => {
 
     expect(dependencies.terminateProcessTree).toHaveBeenCalledWith(1234, 5)
 
-    // Resolve the termination delay to ensure clean up
-    resolveTerminationDelay()
-
     // Resolve the process completion
     resolveCompletion({ exitCode: 143, stdout: 'partial\n' }) // Simulate exit due to SIGTERM
 
@@ -244,6 +241,9 @@ describe('awaitAttemptOutcome', () => {
     })
     expect(cancelInitialTimeout).toHaveBeenCalled()
     expect(cancelTerminationTimeout).toHaveBeenCalled()
+
+    // Resolve deferred timeout promise after assertion to avoid dangling resolvers.
+    resolveTerminationDelay()
   })
 
   it('throws when terminateProcessTree fails with Error', async () => {
