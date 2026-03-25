@@ -3,14 +3,21 @@ import { registerCommandTerminationOnSignal } from '../../src/app/execute-retry/
 import type { RunningCommand } from '../../src/adapters/run-shell-command'
 
 function createProcessSpies() {
+  let resolveExit!: (code: number) => void
+  const exitDone = new Promise<number>((resolve) => {
+    resolveExit = resolve
+  })
+
   return {
     once: vi.spyOn(process, 'once').mockReturnThis(),
     off: vi.spyOn(process, 'off').mockReturnThis(),
     exit: vi
       .spyOn(process, 'exit')
-      .mockImplementation((_code?: number | string | null) => {
+      .mockImplementation((code?: number | string | null) => {
+        resolveExit(Number(code))
         return undefined as never
       }),
+    exitDone,
   }
 }
 
@@ -80,7 +87,7 @@ describe('registerCommandTerminationOnSignal', () => {
     expect(sigtermHandler).toBeDefined()
 
     sigtermHandler?.()
-    await new Promise(process.nextTick) // Allow promise chain to resolve
+    await processSpies.exitDone
 
     expect(params.terminateProcessTree).not.toHaveBeenCalled()
     expect(processSpies.exit).toHaveBeenCalledWith(0)
@@ -108,13 +115,13 @@ describe('registerCommandTerminationOnSignal', () => {
     )
 
     sigtermHandler?.()
-    await new Promise(process.nextTick) // Allow promise and catch blocks to resolve
+    await processSpies.exitDone
 
     expect(params.terminateProcessTree).toHaveBeenCalledWith(1234, 5)
     expect(processSpies.exit).toHaveBeenCalledWith(0) // Inner catch block handles it
   })
 
-  it('catches non-Error outer errors in handler and exits with 1', async () => {
+  it('catches non-Error outer errors in handler and exits with 1 on SIGTERM', async () => {
     const processSpies = createProcessSpies()
     const params = {
       getRunningCommand: vi.fn().mockImplementation(() => {
@@ -132,20 +139,30 @@ describe('registerCommandTerminationOnSignal', () => {
     )
 
     sigtermHandler?.()
-    await new Promise(process.nextTick) // Allow outer catch block to resolve
+    await processSpies.exitDone
 
     // The handler's catch block should have called process.exit(1)
     expect(processSpies.exit).toHaveBeenCalledWith(1)
+  })
 
-    // Also test SIGINT throwing a non-Error outer error
-    processSpies.exit.mockClear()
+  it('catches non-Error outer errors in handler and exits with 1 on SIGINT', async () => {
+    const processSpies = createProcessSpies()
+    const params = {
+      getRunningCommand: vi.fn().mockImplementation(() => {
+        throw 'String outer error'
+      }),
+      terminationGraceSeconds: 5,
+      terminateProcessTree: vi.fn(),
+    }
+
+    registerCommandTerminationOnSignal(params)
 
     const sigintHandler = findSignalHandler(
       processSpies.once.mock.calls,
       'SIGINT',
     )
     sigintHandler?.()
-    await new Promise(process.nextTick)
+    await processSpies.exitDone
 
     expect(processSpies.exit).toHaveBeenCalledWith(1)
   })
@@ -172,7 +189,7 @@ describe('registerCommandTerminationOnSignal', () => {
     )
 
     sigtermHandler?.()
-    await new Promise(process.nextTick)
+    await processSpies.exitDone
 
     expect(params.terminateProcessTree).toHaveBeenCalledWith(1234, 5)
     expect(processSpies.exit).toHaveBeenCalledWith(0)
@@ -200,7 +217,7 @@ describe('registerCommandTerminationOnSignal', () => {
     )
 
     sigintHandler?.()
-    await new Promise(process.nextTick)
+    await processSpies.exitDone
 
     expect(params.terminateProcessTree).toHaveBeenCalledWith(1234, 5)
     expect(processSpies.exit).toHaveBeenCalledWith(0)
@@ -228,13 +245,13 @@ describe('registerCommandTerminationOnSignal', () => {
     )
 
     sigtermHandler?.()
-    await new Promise(process.nextTick) // Allow promise and catch blocks to resolve
+    await processSpies.exitDone
 
     expect(params.terminateProcessTree).toHaveBeenCalledWith(1234, 5)
     expect(processSpies.exit).toHaveBeenCalledWith(0) // Inner catch block handles it
   })
 
-  it('catches outer errors in handler and exits with 1', async () => {
+  it('catches outer errors in handler and exits with 1 on SIGTERM', async () => {
     const processSpies = createProcessSpies()
     const params = {
       getRunningCommand: vi.fn().mockImplementation(() => {
@@ -252,19 +269,30 @@ describe('registerCommandTerminationOnSignal', () => {
     )
 
     sigtermHandler?.()
-    await new Promise(process.nextTick) // Allow outer catch block to resolve
+    await processSpies.exitDone
 
     // The handler's catch block should have called process.exit(1)
     expect(processSpies.exit).toHaveBeenCalledWith(1)
+  })
 
-    processSpies.exit.mockClear()
+  it('catches outer errors in handler and exits with 1 on SIGINT', async () => {
+    const processSpies = createProcessSpies()
+    const params = {
+      getRunningCommand: vi.fn().mockImplementation(() => {
+        throw new Error('Unexpected error in handler setup')
+      }),
+      terminationGraceSeconds: 5,
+      terminateProcessTree: vi.fn(),
+    }
+
+    registerCommandTerminationOnSignal(params)
 
     const sigintHandler = findSignalHandler(
       processSpies.once.mock.calls,
       'SIGINT',
     )
     sigintHandler?.()
-    await new Promise(process.nextTick)
+    await processSpies.exitDone
 
     expect(processSpies.exit).toHaveBeenCalledWith(1)
   })
