@@ -1,6 +1,6 @@
 import * as core from '@actions/core'
 import type { RunningCommand } from '../../adapters/run-shell-command'
-import type { CommandSpec } from '../../domain/command'
+import type { CommandExecution } from '../../domain/command'
 import type { AttemptResult } from '../../domain/result'
 import type { ExecuteRetryDependencies } from './execute-retry-dependencies'
 import {
@@ -13,7 +13,7 @@ import { sanitizeCommand } from './sanitize-command'
 export { sanitizeCommand }
 
 export async function executeAttempt(
-  command: CommandSpec,
+  command: CommandExecution,
   attempt: number,
   dependencies: ExecuteRetryDependencies,
 ): Promise<AttemptResult> {

@@ -5,15 +5,14 @@ import {
   type ExecuteRetryRequest,
 } from '../../src/app/execute-retry'
 
-interface ExecuteRetryRequestOverrides {
-  maxAttempts?: ExecuteRetryRequest['maxAttempts']
-  command?: Partial<ExecuteRetryRequest['command']>
-  policy?: Partial<ExecuteRetryRequest['policy']>
-  schedule?: Partial<ExecuteRetryRequest['schedule']>
-}
+type DeepPartial<T> = T extends object
+  ? {
+      [P in keyof T]?: DeepPartial<T[P]>
+    }
+  : T
 
 function createRequest(
-  overrides?: ExecuteRetryRequestOverrides,
+  overrides?: DeepPartial<ExecuteRetryRequest>,
 ): ExecuteRetryRequest {
   const defaultCommand = {
     command: 'echo test',
@@ -123,16 +122,12 @@ describe('executeRetry', () => {
       .mockImplementation(() => process)
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
-    let resolveCompletion!: (value: {
-      exitCode: number | null
-      stdout: string
-    }) => void
-    const completionPromise = new Promise<{
-      exitCode: number | null
-      stdout: string
-    }>((resolve) => {
-      resolveCompletion = resolve
-    })
+    let resolveCompletion!: (value: { exitCode: number | null }) => void
+    const completionPromise = new Promise<{ exitCode: number | null }>(
+      (resolve) => {
+        resolveCompletion = resolve
+      },
+    )
 
     const terminateProcessTree = vi.fn().mockResolvedValue(undefined)
     const runCommand = vi.fn().mockReturnValue({
@@ -159,7 +154,7 @@ describe('executeRetry', () => {
       expect(terminateProcessTree).toHaveBeenCalledWith(pid, 1)
     })
 
-    resolveCompletion({ exitCode: null, stdout: '' })
+    resolveCompletion({ exitCode: null })
     await resultPromise
 
     const otherSignal = signal === 'SIGTERM' ? 'SIGINT' : 'SIGTERM'

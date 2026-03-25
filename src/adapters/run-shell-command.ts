@@ -1,6 +1,4 @@
-import { spawn, type SpawnOptions, type ChildProcess } from 'node:child_process'
-
-export type SpawnFn = (command: string, options: SpawnOptions) => ChildProcess
+import { spawn } from 'node:child_process'
 
 export interface CommandCompletion {
   exitCode: number | null
@@ -16,7 +14,7 @@ export interface RunningCommand {
 export function runShellCommand(
   command: string,
   shell: string,
-  spawnFn: SpawnFn = spawn,
+  spawnFn = spawn,
 ): RunningCommand {
   const child = spawnFn(command, {
     shell,
