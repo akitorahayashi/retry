@@ -6,9 +6,6 @@ bot_name = "aria"
 bot_email = "aria67323@gmail.com"
 jules_api_worker_max_parallel = 15
 
-[schedule]
-cron = ["0 19 * * *"]
-
 [run]
 jlo_target_branch = "main"
 jules_worker_branch = "jules"
@@ -33,6 +30,5 @@ roles = [
   { name = "qa", enabled = true, tags = ["testing"], event_file_limit = 3, requirement_file_limit = 3 },
   { name = "cov", enabled = true, tags = ["testing"], event_file_limit = 3, requirement_file_limit = 3 },
   { name = "typescripter", enabled = true, event_file_limit = 3, requirement_file_limit = 3 },
-  { name = "librarian", enabled = true, tags = [], event_file_limit = 3, requirement_file_limit = 3 },
 ]
 

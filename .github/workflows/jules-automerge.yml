@@ -47,8 +47,8 @@ jobs:
       - name: Install jlo
         uses: asterismhq/setup-jlo@v1
         with:
-          token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '24.1.0'
+          token: ${{ secrets.JLO_INSTALL_PAT }}
+          version: '24.3.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Discover open PR for pushed branch
@@ -119,8 +119,8 @@ jobs:
         with:
           command: >-
             jlo workflow gh enable-pr-automerge ${{ steps.discover.outputs.pr_number }}
-          max_attempts: '15'
+          max_attempts: '7'
           timeout_seconds: '300'
-          retry_delay_seconds: '10'
+          retry_delay_schedule_seconds: '1,2,4,8,16,32'
           retry_on: any
           termination_grace_seconds: '5'
