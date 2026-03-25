@@ -1,6 +1,6 @@
 {
   "name": "retry",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "TypeScript GitHub Action for command retry execution",
   "private": true,
   "license": "UNLICENSED",

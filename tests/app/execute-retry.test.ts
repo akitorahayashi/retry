@@ -42,10 +42,10 @@ function createRequest(
   }
 }
 
-function completed(exitCode: number | null): RunningCommand {
+function completed(exitCode: number | null, stdout = ''): RunningCommand {
   return {
     pid: 100,
-    completion: Promise.resolve({ exitCode }),
+    completion: Promise.resolve({ exitCode, stdout }),
     isRunning: () => false,
   }
 }
@@ -59,15 +59,19 @@ function createNeverDelay() {
 
 describe('executeRetry', () => {
   it('returns timeout and terminates process tree when timeout wins', async () => {
-    let resolveCompletion!: (value: { exitCode: number | null }) => void
-    const completionPromise = new Promise<{ exitCode: number | null }>(
-      (resolve) => {
-        resolveCompletion = resolve
-      },
-    )
+    let resolveCompletion!: (value: {
+      exitCode: number | null
+      stdout: string
+    }) => void
+    const completionPromise = new Promise<{
+      exitCode: number | null
+      stdout: string
+    }>((resolve) => {
+      resolveCompletion = resolve
+    })
 
     const terminateProcessTree = vi.fn().mockImplementation(async () => {
-      resolveCompletion({ exitCode: null })
+      resolveCompletion({ exitCode: null, stdout: '' })
     })
     const runCommand = vi.fn().mockReturnValue({
       pid: 100,
@@ -99,6 +103,7 @@ describe('executeRetry', () => {
       finalExitCode: null,
       finalOutcome: 'timeout',
       succeeded: false,
+      finalStdout: '',
     })
   })
 
@@ -163,8 +168,8 @@ describe('executeRetry', () => {
   it('stops when one attempt succeeds', async () => {
     const runCommand = vi
       .fn()
-      .mockReturnValueOnce(completed(1))
-      .mockReturnValueOnce(completed(0))
+      .mockReturnValueOnce(completed(1, 'first attempt\n'))
+      .mockReturnValueOnce(completed(0, '{"ok":true}'))
 
     const result = await executeRetry(createRequest(), {
       runCommand,
@@ -178,6 +183,7 @@ describe('executeRetry', () => {
       finalExitCode: 0,
       finalOutcome: 'success',
       succeeded: true,
+      finalStdout: '{"ok":true}',
     })
   })
 
@@ -199,6 +205,7 @@ describe('executeRetry', () => {
       finalExitCode: 9,
       finalOutcome: 'error',
       succeeded: false,
+      finalStdout: '',
     })
   })
 
@@ -223,6 +230,7 @@ describe('executeRetry', () => {
       finalExitCode: 3,
       finalOutcome: 'error',
       succeeded: false,
+      finalStdout: '',
     })
   })
 
@@ -269,7 +277,7 @@ describe('executeRetry', () => {
       .mockImplementationOnce(() => {
         throw new Error('spawn failed')
       })
-      .mockReturnValueOnce(completed(0))
+      .mockReturnValueOnce(completed(0, '{"recovered":true}'))
 
     const result = await executeRetry(createRequest({ maxAttempts: 2 }), {
       runCommand,
@@ -283,6 +291,7 @@ describe('executeRetry', () => {
       finalExitCode: 0,
       finalOutcome: 'success',
       succeeded: true,
+      finalStdout: '{"recovered":true}',
     })
   })
 
@@ -294,7 +303,7 @@ describe('executeRetry', () => {
         completion: Promise.reject(new Error('process crashed')),
         isRunning: () => false,
       })
-      .mockReturnValueOnce(completed(0))
+      .mockReturnValueOnce(completed(0, '{"recovered":true}'))
 
     const result = await executeRetry(createRequest({ maxAttempts: 2 }), {
       runCommand,
@@ -308,6 +317,7 @@ describe('executeRetry', () => {
       finalExitCode: 0,
       finalOutcome: 'success',
       succeeded: true,
+      finalStdout: '{"recovered":true}',
     })
   })
 })

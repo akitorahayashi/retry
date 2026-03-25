@@ -21,7 +21,7 @@ describe('awaitAttemptOutcome', () => {
     const runningCommand: RunningCommand = {
       pid: 1234,
       isRunning: () => true,
-      completion: Promise.resolve({ exitCode: 0 }),
+      completion: Promise.resolve({ exitCode: 0, stdout: 'ok\n' }),
     }
     const dependencies = {
       delay: vi.fn(),
@@ -34,7 +34,7 @@ describe('awaitAttemptOutcome', () => {
       runningCommand,
       dependencies,
     )
-    expect(result).toEqual({ outcome: 'success', exitCode: 0 })
+    expect(result).toEqual({ outcome: 'success', exitCode: 0, stdout: 'ok\n' })
     expect(dependencies.delay).not.toHaveBeenCalled()
   })
 
@@ -47,7 +47,7 @@ describe('awaitAttemptOutcome', () => {
     const runningCommand: RunningCommand = {
       pid: 1234,
       isRunning: () => true,
-      completion: Promise.resolve({ exitCode: 1 }),
+      completion: Promise.resolve({ exitCode: 1, stdout: 'failed\n' }),
     }
     const dependencies = {
       delay: vi.fn(),
@@ -60,7 +60,11 @@ describe('awaitAttemptOutcome', () => {
       runningCommand,
       dependencies,
     )
-    expect(result).toEqual({ outcome: 'error', exitCode: 1 })
+    expect(result).toEqual({
+      outcome: 'error',
+      exitCode: 1,
+      stdout: 'failed\n',
+    })
     expect(dependencies.delay).not.toHaveBeenCalled()
   })
 
@@ -73,7 +77,7 @@ describe('awaitAttemptOutcome', () => {
     const runningCommand: RunningCommand = {
       pid: 1234,
       isRunning: () => true,
-      completion: Promise.resolve({ exitCode: 0 }),
+      completion: Promise.resolve({ exitCode: 0, stdout: '{"ok":true}' }),
     }
     const cancelTimeout = vi.fn()
     const dependencies = {
@@ -90,7 +94,11 @@ describe('awaitAttemptOutcome', () => {
       runningCommand,
       dependencies,
     )
-    expect(result).toEqual({ outcome: 'success', exitCode: 0 })
+    expect(result).toEqual({
+      outcome: 'success',
+      exitCode: 0,
+      stdout: '{"ok":true}',
+    })
     expect(cancelTimeout).toHaveBeenCalled()
     expect(dependencies.terminateProcessTree).not.toHaveBeenCalled()
   })
@@ -101,10 +109,12 @@ describe('awaitAttemptOutcome', () => {
       timeoutSeconds: 1,
       terminationGraceSeconds: 5,
     }
-    let resolveCompletion: (value: { exitCode: number }) => void
-    const completionPromise = new Promise<{ exitCode: number }>((resolve) => {
-      resolveCompletion = resolve
-    })
+    let resolveCompletion: (value: { exitCode: number; stdout: string }) => void
+    const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
+      (resolve) => {
+        resolveCompletion = resolve
+      },
+    )
     const runningCommand: RunningCommand = {
       pid: 1234,
       isRunning: () => true,
@@ -151,11 +161,15 @@ describe('awaitAttemptOutcome', () => {
     expect(dependencies.terminateProcessTree).toHaveBeenCalledWith(1234, 5)
 
     // Resolve the process completion
-    resolveCompletion?.({ exitCode: 143 }) // Simulate exit due to SIGTERM
+    resolveCompletion?.({ exitCode: 143, stdout: 'partial\n' }) // Simulate exit due to SIGTERM
 
     const result = await attemptPromise
 
-    expect(result).toEqual({ outcome: 'timeout', exitCode: 143 })
+    expect(result).toEqual({
+      outcome: 'timeout',
+      exitCode: 143,
+      stdout: 'partial\n',
+    })
     expect(cancelInitialTimeout).toHaveBeenCalled()
     expect(cancelTerminationTimeout).toHaveBeenCalled()
   })
@@ -167,10 +181,12 @@ describe('awaitAttemptOutcome', () => {
       terminationGraceSeconds: 5,
     }
 
-    let resolveCompletion: (value: { exitCode: number }) => void
-    const completionPromise = new Promise<{ exitCode: number }>((resolve) => {
-      resolveCompletion = resolve
-    })
+    let resolveCompletion: (value: { exitCode: number; stdout: string }) => void
+    const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
+      (resolve) => {
+        resolveCompletion = resolve
+      },
+    )
 
     const runningCommand: RunningCommand = {
       pid: 1234,
@@ -205,10 +221,14 @@ describe('awaitAttemptOutcome', () => {
     // Terminate tree failed, but we still expect to wait for the completion
     expect(dependencies.terminateProcessTree).toHaveBeenCalled()
 
-    resolveCompletion?.({ exitCode: 1 })
+    resolveCompletion?.({ exitCode: 1, stdout: 'failed\n' })
 
     const result = await attemptPromise
-    expect(result).toEqual({ outcome: 'timeout', exitCode: 1 })
+    expect(result).toEqual({
+      outcome: 'timeout',
+      exitCode: 1,
+      stdout: 'failed\n',
+    })
   })
 
   it('logs raw non-Error object when terminateProcessTree fails', async () => {
@@ -218,10 +238,12 @@ describe('awaitAttemptOutcome', () => {
       terminationGraceSeconds: 5,
     }
 
-    let resolveCompletion: (value: { exitCode: number }) => void
-    const completionPromise = new Promise<{ exitCode: number }>((resolve) => {
-      resolveCompletion = resolve
-    })
+    let resolveCompletion: (value: { exitCode: number; stdout: string }) => void
+    const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
+      (resolve) => {
+        resolveCompletion = resolve
+      },
+    )
 
     const runningCommand: RunningCommand = {
       pid: 1234,
@@ -253,7 +275,7 @@ describe('awaitAttemptOutcome', () => {
     )
     await new Promise(process.nextTick)
 
-    resolveCompletion?.({ exitCode: 1 })
+    resolveCompletion?.({ exitCode: 1, stdout: 'failed\n' })
 
     await attemptPromise
 
@@ -296,7 +318,7 @@ describe('awaitAttemptOutcome', () => {
       dependencies,
     )
 
-    expect(result).toEqual({ outcome: 'timeout', exitCode: null })
+    expect(result).toEqual({ outcome: 'timeout', exitCode: null, stdout: '' })
   })
 })
 

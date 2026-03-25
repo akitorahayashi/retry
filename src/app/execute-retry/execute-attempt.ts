@@ -43,6 +43,7 @@ export async function executeAttempt(
       attempt,
       outcome: result.outcome,
       exitCode: result.exitCode,
+      stdout: result.stdout,
     }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)
@@ -52,6 +53,7 @@ export async function executeAttempt(
       attempt,
       outcome: 'error',
       exitCode: null,
+      stdout: '',
     }
   } finally {
     cleanupSignalHandlers()

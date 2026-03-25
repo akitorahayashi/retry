@@ -55,6 +55,7 @@ describe('action metadata contracts', () => {
         'final_exit_code',
         'final_outcome',
         'succeeded',
+        'final_stdout',
       ]),
     )
   })

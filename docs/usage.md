@@ -30,6 +30,27 @@ The output surface is:
 - `final_exit_code`
 - `final_outcome`
 - `succeeded`
+- `final_stdout`
+
+`final_stdout` contains the final attempt stdout exactly as emitted by the command.
+
+## Structured Output Example
+
+```yaml
+- id: run
+  uses: akitorahayashi/retry@v1
+  with:
+    command: printf '%s\n' '{"status":"ok","count":2}'
+    max_attempts: '7'
+    retry_delay_schedule_seconds: '1,2,4,8,16,32'
+
+- run: |
+    set -euo pipefail
+    echo "$FINAL_STDOUT"
+  env:
+    FINAL_STDOUT: ${{ steps.run.outputs.final_stdout }}
+
+```
 
 ## Timeout-Only Retry Example
 

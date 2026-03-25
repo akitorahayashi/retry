@@ -9,4 +9,5 @@ export function emitOutputs(result: FinalResult): void {
   )
   core.setOutput('final_outcome', result.finalOutcome)
   core.setOutput('succeeded', String(result.succeeded))
+  core.setOutput('final_stdout', result.finalStdout)
 }
