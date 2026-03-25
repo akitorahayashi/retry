@@ -39,19 +39,18 @@ export async function awaitAttemptOutcome(
     if (completion.type === 'timeout') {
       throw new Error('Unexpected timeout when timeout is undefined')
     }
-    return (
-      completion.exitCode === 0
-        ? {
-            outcome: 'success',
-            exitCode: completion.exitCode,
-            stdout: completion.stdout,
-          }
-        : {
-            outcome: 'error',
-            exitCode: completion.exitCode,
-            stdout: completion.stdout,
-          }
-    ) as ExecutionResult
+    if (completion.exitCode === 0) {
+      return {
+        outcome: 'success',
+        exitCode: completion.exitCode,
+        stdout: completion.stdout,
+      }
+    }
+    return {
+      outcome: 'error',
+      exitCode: completion.exitCode,
+      stdout: completion.stdout,
+    }
   }
 
   const timeout = dependencies.delay(command.timeoutSeconds * 1000)
@@ -63,19 +62,18 @@ export async function awaitAttemptOutcome(
     ])
 
     if (result.type === 'completion') {
-      return (
-        result.exitCode === 0
-          ? {
-              outcome: 'success',
-              exitCode: result.exitCode,
-              stdout: result.stdout,
-            }
-          : {
-              outcome: 'error',
-              exitCode: result.exitCode,
-              stdout: result.stdout,
-            }
-      ) as ExecutionResult
+      if (result.exitCode === 0) {
+        return {
+          outcome: 'success',
+          exitCode: result.exitCode,
+          stdout: result.stdout,
+        }
+      }
+      return {
+        outcome: 'error',
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+      }
     }
 
     core.warning(
@@ -113,11 +111,13 @@ export async function awaitAttemptOutcome(
         }
       }
 
+      // For timeout outcomes, the exit code from a terminated process isn't
+      // representative of the command's execution, so we always use null.
       return {
         outcome: 'timeout',
-        exitCode: finalCompletion.exitCode,
+        exitCode: null,
         stdout: finalCompletion.stdout,
-      } as ExecutionResult
+      }
     } finally {
       terminationTimeout.cancel()
     }
