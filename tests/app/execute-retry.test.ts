@@ -1,21 +1,44 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { RunningCommand } from '../../src/adapters/run-shell-command'
-import { executeRetry } from '../../src/app/execute-retry'
-import type { RetryRequest } from '../../src/action/read-inputs'
+import {
+  executeRetry,
+  type ExecuteRetryRequest,
+} from '../../src/app/execute-retry'
 
-function createRequest(overrides?: Partial<RetryRequest>): RetryRequest {
-  return {
+type DeepPartial<T> = T extends object
+  ? {
+      [P in keyof T]?: DeepPartial<T[P]>
+    }
+  : T
+
+function createRequest(
+  overrides?: DeepPartial<ExecuteRetryRequest>,
+): ExecuteRetryRequest {
+  const defaultCommand = {
     command: 'echo test',
-    maxAttempts: 3,
     shell: 'bash',
     timeoutSeconds: undefined,
+    terminationGraceSeconds: 1,
+    ...(overrides?.command || {}),
+  }
+
+  const defaultPolicy = {
+    retryOn: 'any' as const,
+    retryOnExitCodes: undefined,
+    ...(overrides?.policy || {}),
+  }
+
+  const defaultSchedule = {
     retryDelaySeconds: 0,
     retryDelayScheduleSeconds: [],
-    retryOn: 'any',
-    retryOnExitCodes: undefined,
-    continueOnError: false,
-    terminationGraceSeconds: 1,
-    ...overrides,
+    ...(overrides?.schedule || {}),
+  }
+
+  return {
+    maxAttempts: overrides?.maxAttempts ?? 3,
+    command: defaultCommand,
+    policy: defaultPolicy,
+    schedule: defaultSchedule,
   }
 }
 
@@ -55,8 +78,10 @@ describe('executeRetry', () => {
     const result = await executeRetry(
       createRequest({
         maxAttempts: 1,
-        timeoutSeconds: 5,
-        terminationGraceSeconds: 2,
+        command: {
+          timeoutSeconds: 5,
+          terminationGraceSeconds: 2,
+        },
       }),
       {
         runCommand,
@@ -64,7 +89,6 @@ describe('executeRetry', () => {
           promise: Promise.resolve(),
           cancel: vi.fn(),
         }),
-        sleep: vi.fn().mockResolvedValue(undefined),
         terminateProcessTree,
       },
     )
@@ -110,7 +134,6 @@ describe('executeRetry', () => {
     const resultPromise = executeRetry(createRequest({ maxAttempts: 1 }), {
       runCommand,
       delay: vi.fn().mockReturnValue(createNeverDelay()),
-      sleep: vi.fn().mockResolvedValue(undefined),
       terminateProcessTree,
     })
 
@@ -146,7 +169,6 @@ describe('executeRetry', () => {
     const result = await executeRetry(createRequest(), {
       runCommand,
       delay: vi.fn().mockReturnValue(createNeverDelay()),
-      sleep: vi.fn().mockResolvedValue(undefined),
       terminateProcessTree: vi.fn().mockResolvedValue(undefined),
     })
 
@@ -162,12 +184,14 @@ describe('executeRetry', () => {
   it('stops without retry when policy excludes error failures', async () => {
     const runCommand = vi.fn().mockReturnValue(completed(9))
 
-    const result = await executeRetry(createRequest({ retryOn: 'timeout' }), {
-      runCommand,
-      delay: vi.fn().mockReturnValue(createNeverDelay()),
-      sleep: vi.fn().mockResolvedValue(undefined),
-      terminateProcessTree: vi.fn().mockResolvedValue(undefined),
-    })
+    const result = await executeRetry(
+      createRequest({ policy: { retryOn: 'timeout' } }),
+      {
+        runCommand,
+        delay: vi.fn().mockReturnValue(createNeverDelay()),
+        terminateProcessTree: vi.fn().mockResolvedValue(undefined),
+      },
+    )
 
     expect(runCommand).toHaveBeenCalledTimes(1)
     expect(result).toEqual({
@@ -185,11 +209,10 @@ describe('executeRetry', () => {
       .mockReturnValueOnce(completed(3))
 
     const result = await executeRetry(
-      createRequest({ retryOnExitCodes: new Set([2, 7]) }),
+      createRequest({ policy: { retryOnExitCodes: new Set([2, 7]) } }),
       {
         runCommand,
         delay: vi.fn().mockReturnValue(createNeverDelay()),
-        sleep: vi.fn().mockResolvedValue(undefined),
         terminateProcessTree: vi.fn().mockResolvedValue(undefined),
       },
     )
@@ -210,23 +233,33 @@ describe('executeRetry', () => {
       .mockReturnValueOnce(completed(2))
       .mockReturnValueOnce(completed(3))
 
-    const sleepFn = vi.fn().mockResolvedValue(undefined)
+    const delayFn = vi.fn().mockImplementation((ms) => {
+      // If ms is not a small sleep, it's likely a timeout or not our expected sleep
+      if (ms === 1000 || ms === 5000 || ms === 10000) {
+        return {
+          promise: Promise.resolve(),
+          cancel: vi.fn(),
+        }
+      }
+      return createNeverDelay()
+    })
 
     const result = await executeRetry(
       createRequest({
-        retryDelaySeconds: 10,
-        retryDelayScheduleSeconds: [1, 5],
+        schedule: {
+          retryDelaySeconds: 10,
+          retryDelayScheduleSeconds: [1, 5],
+        },
       }),
       {
         runCommand,
-        delay: vi.fn().mockReturnValue(createNeverDelay()),
-        sleep: sleepFn,
+        delay: delayFn,
         terminateProcessTree: vi.fn().mockResolvedValue(undefined),
       },
     )
 
-    expect(sleepFn).toHaveBeenNthCalledWith(1, 1000)
-    expect(sleepFn).toHaveBeenNthCalledWith(2, 5000)
+    expect(delayFn).toHaveBeenNthCalledWith(1, 1000)
+    expect(delayFn).toHaveBeenNthCalledWith(2, 5000)
     expect(result.attempts).toBe(3)
   })
 
@@ -241,7 +274,6 @@ describe('executeRetry', () => {
     const result = await executeRetry(createRequest({ maxAttempts: 2 }), {
       runCommand,
       delay: vi.fn().mockReturnValue(createNeverDelay()),
-      sleep: vi.fn().mockResolvedValue(undefined),
       terminateProcessTree: vi.fn().mockResolvedValue(undefined),
     })
 
@@ -267,7 +299,6 @@ describe('executeRetry', () => {
     const result = await executeRetry(createRequest({ maxAttempts: 2 }), {
       runCommand,
       delay: vi.fn().mockReturnValue(createNeverDelay()),
-      sleep: vi.fn().mockResolvedValue(undefined),
       terminateProcessTree: vi.fn().mockResolvedValue(undefined),
     })
 
