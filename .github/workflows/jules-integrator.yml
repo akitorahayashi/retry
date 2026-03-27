@@ -39,13 +39,16 @@ jobs:
       - name: Install jlo
         uses: asterismhq/setup-jlo@v1
         with:
-          token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '24.1.0'
+          token: ${{ secrets.JLO_INSTALL_PAT }}
+          version: '24.3.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Run integrator
+        uses: akitorahayashi/retry@v1
         env:
           JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
-        run: |
-          set -euo pipefail
-          jlo run integrator
+        with:
+          command: >-
+            jlo run integrator
+          max_attempts: '7'
+          retry_delay_schedule_seconds: '1,2,4,8,16,32'

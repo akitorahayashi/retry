@@ -41,7 +41,7 @@ jobs:
   bootstrap:
     
     if: >-
-      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') &&
+      (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') &&
       
       true
       
@@ -78,8 +78,8 @@ jobs:
       - name: Install jlo
         uses: asterismhq/setup-jlo@v1
         with:
-          token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '24.1.0'
+          token: ${{ secrets.JLO_INSTALL_PAT }}
+          version: '24.3.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Sync worker branch
@@ -113,20 +113,10 @@ jobs:
         id: sync_pr
         run: |
           set -euo pipefail
-          pr_body=$(cat <<EOF
-          Automated bootstrap update for the runtime workspace.
-
-          - synchronize ${JLO_TARGET_BRANCH} into ${JULES_WORKER_BRANCH} via \`jlo workflow bootstrap worker-branch\`
-          - bootstrap managed files via \`jlo workflow bootstrap managed-files\`
-          - reset exchange state via \`jlo workflow bootstrap clean-exchange\`
-          EOF
-          )
           jlo_version="$(jlo --version | cut -d ' ' -f 2)"
           jlo workflow create-sync-pr \
             --change-token "bootstrap" \
-            --commit-message "chore: bootstrap .jules/ runtime repository [jlo ${jlo_version}]" \
-            --pr-title "chore: bootstrap runtime workspace" \
-            --pr-body "${pr_body}"
+            --commit-message "chore: bootstrap .jules/ runtime repository [jlo ${jlo_version}]"
 
       - name: Wait for bootstrap sync PR merge
         id: wait_for_sync_pr
@@ -138,16 +128,18 @@ jobs:
         with:
           command: >-
             jlo workflow gh inspect-pr-merge "$PR_NUMBER"
-          max_attempts: '60'
+          max_attempts: '8'
           retry_on: error
           retry_on_exit_codes: '11'
-          retry_delay_seconds: '5'
+          # Sync PR merge state has an initial GitHub visibility lag after publication. The first retry waits 3s; later retries use 1,2,4,8,16,32s.
+          retry_delay_schedule_seconds: '3,1,2,4,8,16,32'
 
 
   # ============================================================
   # Phase 1: Run scribe
   # ============================================================
 
+  
   
   
   
@@ -184,25 +176,26 @@ jobs:
       - name: Install jlo
         uses: asterismhq/setup-jlo@v1
         with:
-          token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '24.1.0'
+          token: ${{ secrets.JLO_INSTALL_PAT }}
+          version: '24.3.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
       - name: Run scribe
         id: run
         if: ${{ needs.bootstrap.result == 'success' }}
         continue-on-error: true
-        run: |
-          set -euo pipefail
-          result=$(jlo run --json scribe ${{ env.JLO_RUN_FLAGS }})
-          echo "${result}"
-          echo "json=${result}" >> "$GITHUB_OUTPUT"
+        uses: akitorahayashi/retry@v1
+        with:
+          command: >-
+            jlo run --json scribe ${{ env.JLO_RUN_FLAGS }}
+          max_attempts: '7'
+          retry_delay_schedule_seconds: '1,2,4,8,16,32'
       - name: Report Run scribe status
         id: report
         if: ${{ always() }}
         env:
           REQUESTED_FLAG: ${{ true }}
           REQUEST_RESULT: ${{ steps.run.outcome }}
-          RUN_JSON: ${{ steps.run.outputs.json || '{}' }}
+          RUN_JSON: ${{ steps.run.outputs.final_stdout || '{}' }}
         run: |
           set -euo pipefail
           jlo workflow resolve run-status \
@@ -258,8 +251,8 @@ jobs:
       - name: Install jlo
         uses: asterismhq/setup-jlo@v1
         with:
-          token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '24.1.0'
+          token: ${{ secrets.JLO_INSTALL_PAT }}
+          version: '24.3.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Cleanup mock artifacts for this run
@@ -278,7 +271,5 @@ jobs:
           fi
           jlo workflow create-sync-pr \
             --change-token "mock-cleanup-${JULES_MOCK_TAG}" \
-            --commit-message "jules: cleanup mock artifacts ${JULES_MOCK_TAG}" \
-            --pr-title "chore: cleanup mock artifacts ${JULES_MOCK_TAG}" \
-            --pr-body "Automated cleanup for mock run ${JULES_MOCK_TAG}."
+            --commit-message "jules: cleanup mock artifacts ${JULES_MOCK_TAG}"
 
