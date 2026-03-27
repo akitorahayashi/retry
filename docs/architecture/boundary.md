@@ -43,3 +43,10 @@ The action fails explicitly when:
 - attempts are exhausted and `continue_on_error` is not enabled
 
 No silent fallback paths are used.
+
+## Testing Constraints
+
+Test suites adhere to strict determinism and isolation:
+
+- Pure components (`src/domain/`) are tested exclusively through their public API, verifying output mapping without mock orchestration or timeline manipulation.
+- I/O boundaries and timing mechanisms (`src/adapters/` and `src/app/`) must replace arbitrary execution speed dependencies (`sleep`, `setTimeout`) and event loop mechanics (`process.nextTick`) with deterministic scheduling. Use fake timers or explicit promise resolution tracking to guarantee predictable, sequence-independent evaluation.

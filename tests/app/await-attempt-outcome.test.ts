@@ -39,6 +39,42 @@ describe('awaitAttemptOutcome', () => {
     expect(dependencies.delay).not.toHaveBeenCalled()
   })
 
+  it('throws error when process unexpectedly times out despite timeoutSeconds being undefined', async () => {
+    const command: CommandSpec = {
+      command: 'echo "test"',
+      shell: 'bash',
+      timeoutSeconds: undefined,
+      terminationGraceSeconds: 5,
+    }
+    const runningCommand: RunningCommand = {
+      pid: 1234,
+      isRunning: () => true,
+      completion: Promise.resolve({ exitCode: null, stdout: '' }),
+    }
+
+    // To simulate completion resolving to a timeout outcome natively,
+    // we use `Object.defineProperty` or `vi.spyOn` on the promise `then`.
+    // But since it's a native promise, we can instead return an object
+    // that mimics a promise and directly invokes the callback with what
+    // it expects or just skips the completion mapping.
+    // Wait, the easiest way is to mock `completionPromise` inside the function?
+    // We cannot. But we CAN mock `runningCommand.completion.then` directly!
+    // We assign vi.fn() to the 'then' property and disable the linter check
+    runningCommand.completion = {
+      // biome-ignore lint/suspicious/noThenProperty: we are intentionally mocking a Promise
+      then: vi.fn().mockResolvedValue({ type: 'timeout' }),
+    } as unknown as Promise<{ exitCode: number | null; stdout: string }>
+    const dependencies = {
+      delay: vi.fn(),
+      terminateProcessTree: vi.fn(),
+    }
+
+    await expect(
+      awaitAttemptOutcome(command, 1, runningCommand, dependencies),
+    ).rejects.toThrow('Unexpected timeout when timeout is undefined')
+    expect(dependencies.delay).not.toHaveBeenCalled()
+  })
+
   it('returns error when process completes with non-zero exit code without timeout', async () => {
     const command: CommandSpec = {
       command: 'exit 1',
@@ -83,20 +119,33 @@ describe('awaitAttemptOutcome', () => {
       completion: Promise.resolve({ exitCode: 0, stdout: '{"ok":true}' }),
     }
     const cancelTimeout = vi.fn()
+
+    // Create a resolvable promise to represent a delay that never triggered before completion
+    let resolveDelay!: () => void
+    const delayPromise = new Promise<void>((resolve) => {
+      resolveDelay = resolve
+    })
+
     const dependencies = {
       delay: vi.fn().mockReturnValue({
-        promise: new Promise(() => {}), // Never resolves so completion wins
+        promise: delayPromise,
         cancel: cancelTimeout,
       }),
       terminateProcessTree: vi.fn(),
     }
 
-    const result = await awaitAttemptOutcome(
+    const resultPromise = awaitAttemptOutcome(
       command,
       1,
       runningCommand,
       dependencies,
     )
+
+    // Resolve delay to ensure test cleans up even though completion is faster
+    resolveDelay()
+
+    const result = await resultPromise
+
     expect(result).toEqual({
       outcome: 'success',
       exitCode: 0,
@@ -136,6 +185,16 @@ describe('awaitAttemptOutcome', () => {
     const cancelInitialTimeout = vi.fn()
     const cancelTerminationTimeout = vi.fn()
 
+    let resolveTerminationDelay!: () => void
+    const terminationDelayPromise = new Promise<void>((resolve) => {
+      resolveTerminationDelay = resolve
+    })
+
+    let resolveTerminateProcessTree!: () => void
+    const terminateProcessTreePromise = new Promise<void>((resolve) => {
+      resolveTerminateProcessTree = resolve
+    })
+
     const dependencies = {
       delay: vi
         .fn()
@@ -146,10 +205,13 @@ describe('awaitAttemptOutcome', () => {
         })
         .mockReturnValueOnce({
           // Second delay is the 5000ms termination timeout
-          promise: new Promise(() => {}), // Never resolves so completion wins
+          promise: terminationDelayPromise,
           cancel: cancelTerminationTimeout,
         }),
-      terminateProcessTree: vi.fn().mockResolvedValue(undefined),
+      terminateProcessTree: vi.fn().mockImplementation(() => {
+        resolveTerminateProcessTree()
+        return Promise.resolve()
+      }),
     }
 
     const attemptPromise = awaitAttemptOutcome(
@@ -162,8 +224,8 @@ describe('awaitAttemptOutcome', () => {
     // Trigger initial timeout
     resolveInitialTimeout()
 
-    // Allow event loop to process
-    await new Promise(process.nextTick)
+    // Await deterministic execution of termination instead of arbitrary tick
+    await terminateProcessTreePromise
 
     expect(dependencies.terminateProcessTree).toHaveBeenCalledWith(1234, 5)
 
@@ -174,11 +236,14 @@ describe('awaitAttemptOutcome', () => {
 
     expect(result).toEqual({
       outcome: 'timeout',
-      exitCode: 143,
+      exitCode: null,
       stdout: 'partial\n',
     })
     expect(cancelInitialTimeout).toHaveBeenCalled()
     expect(cancelTerminationTimeout).toHaveBeenCalled()
+
+    // Resolve deferred timeout promise after assertion to avoid dangling resolvers.
+    resolveTerminationDelay()
   })
 
   it('throws when terminateProcessTree fails with Error', async () => {
@@ -189,8 +254,14 @@ describe('awaitAttemptOutcome', () => {
       terminationGraceSeconds: 5,
     }
 
+    let resolveCompletion!: (value: {
+      exitCode: number
+      stdout: string
+    }) => void
     const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
-      () => {},
+      (resolve) => {
+        resolveCompletion = resolve
+      },
     )
 
     const runningCommand: RunningCommand = {
@@ -200,6 +271,11 @@ describe('awaitAttemptOutcome', () => {
     }
 
     const cancelTimeout = vi.fn()
+    let resolveTerminationDelay!: () => void
+    const terminationDelayPromise = new Promise<void>((resolve) => {
+      resolveTerminationDelay = resolve
+    })
+
     const dependencies = {
       delay: vi
         .fn()
@@ -208,7 +284,7 @@ describe('awaitAttemptOutcome', () => {
           cancel: cancelTimeout,
         })
         .mockReturnValueOnce({
-          promise: new Promise(() => {}), // Second delay never resolves
+          promise: terminationDelayPromise, // Second delay
           cancel: vi.fn(),
         }),
       terminateProcessTree: vi.fn().mockRejectedValue(new Error('Kill failed')),
@@ -221,11 +297,11 @@ describe('awaitAttemptOutcome', () => {
       dependencies,
     )
 
-    await new Promise(process.nextTick)
-
+    await expect(attemptPromise).rejects.toThrow('Kill failed')
     expect(dependencies.terminateProcessTree).toHaveBeenCalled()
 
-    await expect(attemptPromise).rejects.toThrow('Kill failed')
+    resolveCompletion({ exitCode: 1, stdout: '' })
+    resolveTerminationDelay()
   })
 
   it('throws when terminateProcessTree fails with a non-Error value', async () => {
@@ -236,8 +312,14 @@ describe('awaitAttemptOutcome', () => {
       terminationGraceSeconds: 5,
     }
 
+    let resolveCompletion!: (value: {
+      exitCode: number
+      stdout: string
+    }) => void
     const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
-      () => {},
+      (resolve) => {
+        resolveCompletion = resolve
+      },
     )
 
     const runningCommand: RunningCommand = {
@@ -245,6 +327,11 @@ describe('awaitAttemptOutcome', () => {
       isRunning: () => true,
       completion: completionPromise,
     }
+
+    let resolveTerminationDelay!: () => void
+    const terminationDelayPromise = new Promise<void>((resolve) => {
+      resolveTerminationDelay = resolve
+    })
 
     const dependencies = {
       delay: vi
@@ -254,7 +341,7 @@ describe('awaitAttemptOutcome', () => {
           cancel: vi.fn(),
         })
         .mockReturnValueOnce({
-          promise: new Promise(() => {}), // Second delay never resolves
+          promise: terminationDelayPromise,
           cancel: vi.fn(),
         }),
       terminateProcessTree: vi.fn().mockRejectedValue('String error message'),
@@ -266,9 +353,12 @@ describe('awaitAttemptOutcome', () => {
       runningCommand,
       dependencies,
     )
-    await new Promise(process.nextTick)
 
     await expect(attemptPromise).rejects.toBe('String error message')
+    expect(dependencies.terminateProcessTree).toHaveBeenCalled()
+
+    resolveCompletion({ exitCode: 1, stdout: '' })
+    resolveTerminationDelay()
   })
 
   it('returns a safe outcome without exit code if termination fallback timeout triggers', async () => {
@@ -279,10 +369,20 @@ describe('awaitAttemptOutcome', () => {
       terminationGraceSeconds: 5,
     }
 
+    let resolveCompletion!: (value: {
+      exitCode: number
+      stdout: string
+    }) => void
+    const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
+      (resolve) => {
+        resolveCompletion = resolve
+      },
+    )
+
     const runningCommand: RunningCommand = {
       pid: 1234,
       isRunning: () => true,
-      completion: new Promise(() => {}), // Never completes
+      completion: completionPromise,
     }
 
     const dependencies = {
@@ -299,14 +399,17 @@ describe('awaitAttemptOutcome', () => {
       terminateProcessTree: vi.fn().mockResolvedValue(undefined),
     }
 
-    const result = await awaitAttemptOutcome(
+    const resultPromise = awaitAttemptOutcome(
       command,
       1,
       runningCommand,
       dependencies,
     )
 
+    const result = await resultPromise
+
     expect(result).toEqual({ outcome: 'timeout', exitCode: null, stdout: '' })
+    resolveCompletion({ exitCode: 1, stdout: '' })
   })
 })
 

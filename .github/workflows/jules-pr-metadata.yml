@@ -42,8 +42,8 @@ jobs:
       - name: Install jlo
         uses: asterismhq/setup-jlo@v1
         with:
-          token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '24.1.0'
+          token: ${{ secrets.JLO_INSTALL_PAT }}
+          version: '24.3.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Discover PR number
@@ -55,10 +55,10 @@ jobs:
         with:
           command: >-
             jlo workflow gh discover-pr "${BRANCH_NAME}"
-          max_attempts: '24'
+          max_attempts: '7'
           retry_on: error
           retry_on_exit_codes: '11'
-          retry_delay_seconds: '5'
+          retry_delay_schedule_seconds: '1,2,4,8,16,32'
 
       - name: Sync PR metadata label
         env:

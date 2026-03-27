@@ -59,8 +59,8 @@ jobs:
       - name: Install jlo
         uses: asterismhq/setup-jlo@v1
         with:
-          token: ${{ secrets.JLO_RELEASE_PAT }}
-          version: '24.1.0'
+          token: ${{ secrets.JLO_INSTALL_PAT }}
+          version: '24.3.0'
           submodule_token: ${{ secrets.JLO_SUBMODULE_PAT }}
 
       - name: Resolve stewards plan
