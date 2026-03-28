@@ -4,8 +4,10 @@ import {
   logAttemptCompletion,
 } from '../../src/app/execute-retry/await-attempt-outcome'
 import * as core from '@actions/core'
-import type { RunningCommand } from '../../src/adapters/run-shell-command'
-import type { CommandSpec } from '../../src/domain/command'
+import {
+  createCommandSpec,
+  createRunningCommand,
+} from '../fixtures/execute-retry-fixtures'
 
 describe('awaitAttemptOutcome', () => {
   beforeEach(() => {
@@ -13,17 +15,10 @@ describe('awaitAttemptOutcome', () => {
   })
 
   it('returns success when process completes without timeout', async () => {
-    const command: CommandSpec = {
-      command: 'echo "test"',
-      shell: 'bash',
-      timeoutSeconds: undefined,
-      terminationGraceSeconds: 5,
-    }
-    const runningCommand: RunningCommand = {
-      pid: 1234,
-      isRunning: () => true,
-      completion: Promise.resolve({ exitCode: 0, stdout: 'ok\n' }),
-    }
+    const command = createCommandSpec()
+    const runningCommand = createRunningCommand(
+      Promise.resolve({ exitCode: 0, stdout: 'ok\n' }),
+    )
     const dependencies = {
       delay: vi.fn(),
       terminateProcessTree: vi.fn(),
@@ -40,17 +35,10 @@ describe('awaitAttemptOutcome', () => {
   })
 
   it('throws error when process unexpectedly times out despite timeoutSeconds being undefined', async () => {
-    const command: CommandSpec = {
-      command: 'echo "test"',
-      shell: 'bash',
-      timeoutSeconds: undefined,
-      terminationGraceSeconds: 5,
-    }
-    const runningCommand: RunningCommand = {
-      pid: 1234,
-      isRunning: () => true,
-      completion: Promise.resolve({ exitCode: null, stdout: '' }),
-    }
+    const command = createCommandSpec()
+    const runningCommand = createRunningCommand(
+      Promise.resolve({ exitCode: null, stdout: '' }),
+    )
 
     // To simulate completion resolving to a timeout outcome natively,
     // we use `Object.defineProperty` or `vi.spyOn` on the promise `then`.
@@ -76,17 +64,10 @@ describe('awaitAttemptOutcome', () => {
   })
 
   it('returns error when process completes with non-zero exit code without timeout', async () => {
-    const command: CommandSpec = {
-      command: 'exit 1',
-      shell: 'bash',
-      timeoutSeconds: undefined,
-      terminationGraceSeconds: 5,
-    }
-    const runningCommand: RunningCommand = {
-      pid: 1234,
-      isRunning: () => true,
-      completion: Promise.resolve({ exitCode: 1, stdout: 'failed\n' }),
-    }
+    const command = createCommandSpec({ command: 'exit 1' })
+    const runningCommand = createRunningCommand(
+      Promise.resolve({ exitCode: 1, stdout: 'failed\n' }),
+    )
     const dependencies = {
       delay: vi.fn(),
       terminateProcessTree: vi.fn(),
@@ -107,17 +88,10 @@ describe('awaitAttemptOutcome', () => {
   })
 
   it('returns success when process completes before timeout', async () => {
-    const command: CommandSpec = {
-      command: 'echo "test"',
-      shell: 'bash',
-      timeoutSeconds: 10,
-      terminationGraceSeconds: 5,
-    }
-    const runningCommand: RunningCommand = {
-      pid: 1234,
-      isRunning: () => true,
-      completion: Promise.resolve({ exitCode: 0, stdout: '{"ok":true}' }),
-    }
+    const command = createCommandSpec({ timeoutSeconds: 10 })
+    const runningCommand = createRunningCommand(
+      Promise.resolve({ exitCode: 0, stdout: '{"ok":true}' }),
+    )
     const cancelTimeout = vi.fn()
 
     // Create a resolvable promise to represent a delay that never triggered before completion
@@ -156,26 +130,21 @@ describe('awaitAttemptOutcome', () => {
   })
 
   it('terminates process tree when timeout is reached', async () => {
-    const command: CommandSpec = {
+    const command = createCommandSpec({
       command: 'sleep 10',
-      shell: 'bash',
       timeoutSeconds: 1,
-      terminationGraceSeconds: 5,
-    }
+    })
     let resolveCompletion!: (value: {
-      exitCode: number
+      exitCode: number | null
       stdout: string
     }) => void
-    const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
-      (resolve) => {
-        resolveCompletion = resolve
-      },
-    )
-    const runningCommand: RunningCommand = {
-      pid: 1234,
-      isRunning: () => true,
-      completion: completionPromise,
-    }
+    const completionPromise = new Promise<{
+      exitCode: number | null
+      stdout: string
+    }>((resolve) => {
+      resolveCompletion = resolve
+    })
+    const runningCommand = createRunningCommand(completionPromise)
 
     let resolveInitialTimeout!: () => void
     const initialTimeoutPromise = new Promise<void>((resolve) => {
@@ -247,28 +216,23 @@ describe('awaitAttemptOutcome', () => {
   })
 
   it('throws when terminateProcessTree fails with Error', async () => {
-    const command: CommandSpec = {
+    const command = createCommandSpec({
       command: 'sleep 10',
-      shell: 'bash',
       timeoutSeconds: 1,
-      terminationGraceSeconds: 5,
-    }
+    })
 
     let resolveCompletion!: (value: {
-      exitCode: number
+      exitCode: number | null
       stdout: string
     }) => void
-    const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
-      (resolve) => {
-        resolveCompletion = resolve
-      },
-    )
+    const completionPromise = new Promise<{
+      exitCode: number | null
+      stdout: string
+    }>((resolve) => {
+      resolveCompletion = resolve
+    })
 
-    const runningCommand: RunningCommand = {
-      pid: 1234,
-      isRunning: () => true,
-      completion: completionPromise,
-    }
+    const runningCommand = createRunningCommand(completionPromise)
 
     const cancelTimeout = vi.fn()
     let resolveTerminationDelay!: () => void
@@ -305,28 +269,23 @@ describe('awaitAttemptOutcome', () => {
   })
 
   it('throws when terminateProcessTree fails with a non-Error value', async () => {
-    const command: CommandSpec = {
+    const command = createCommandSpec({
       command: 'sleep 10',
-      shell: 'bash',
       timeoutSeconds: 1,
-      terminationGraceSeconds: 5,
-    }
+    })
 
     let resolveCompletion!: (value: {
-      exitCode: number
+      exitCode: number | null
       stdout: string
     }) => void
-    const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
-      (resolve) => {
-        resolveCompletion = resolve
-      },
-    )
+    const completionPromise = new Promise<{
+      exitCode: number | null
+      stdout: string
+    }>((resolve) => {
+      resolveCompletion = resolve
+    })
 
-    const runningCommand: RunningCommand = {
-      pid: 1234,
-      isRunning: () => true,
-      completion: completionPromise,
-    }
+    const runningCommand = createRunningCommand(completionPromise)
 
     let resolveTerminationDelay!: () => void
     const terminationDelayPromise = new Promise<void>((resolve) => {
@@ -362,28 +321,23 @@ describe('awaitAttemptOutcome', () => {
   })
 
   it('returns a safe outcome without exit code if termination fallback timeout triggers', async () => {
-    const command: CommandSpec = {
+    const command = createCommandSpec({
       command: 'sleep 10',
-      shell: 'bash',
       timeoutSeconds: 1,
-      terminationGraceSeconds: 5,
-    }
+    })
 
     let resolveCompletion!: (value: {
-      exitCode: number
+      exitCode: number | null
       stdout: string
     }) => void
-    const completionPromise = new Promise<{ exitCode: number; stdout: string }>(
-      (resolve) => {
-        resolveCompletion = resolve
-      },
-    )
+    const completionPromise = new Promise<{
+      exitCode: number | null
+      stdout: string
+    }>((resolve) => {
+      resolveCompletion = resolve
+    })
 
-    const runningCommand: RunningCommand = {
-      pid: 1234,
-      isRunning: () => true,
-      completion: completionPromise,
-    }
+    const runningCommand = createRunningCommand(completionPromise)
 
     const dependencies = {
       delay: vi
