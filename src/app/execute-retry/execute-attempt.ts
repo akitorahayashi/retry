@@ -40,36 +40,7 @@ export async function executeAttempt(
 
       logAttemptCompletion(attempt, result.outcome, result.exitCode)
 
-      if (result.outcome === 'success') {
-        if (result.exitCode === null) {
-          throw new Error(
-            'Successful attempt must include a numeric exit code.',
-          )
-        }
-
-        return {
-          attempt,
-          outcome: 'success',
-          exitCode: result.exitCode,
-          stdout: result.stdout,
-        }
-      }
-
-      if (result.outcome === 'timeout') {
-        return {
-          attempt,
-          outcome: 'timeout',
-          exitCode: null,
-          stdout: result.stdout,
-        }
-      }
-
-      return {
-        attempt,
-        outcome: 'error',
-        exitCode: result.exitCode,
-        stdout: result.stdout,
-      }
+      return result
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error)

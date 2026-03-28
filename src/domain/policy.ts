@@ -1,4 +1,5 @@
-export type AttemptOutcome = 'success' | 'error' | 'timeout'
+import type { AttemptOutcome } from './result'
+
 export type RetryOn = 'any' | 'error' | 'timeout'
 
 export interface RetryPolicy {

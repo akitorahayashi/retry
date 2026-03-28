@@ -35,7 +35,7 @@ describe('awaitAttemptOutcome', () => {
       runningCommand,
       dependencies,
     )
-    expect(result).toEqual({ outcome: 'success', exitCode: 0, stdout: 'ok\n' })
+    expect(result).toEqual({ attempt: 1, outcome: 'success', exitCode: 0, stdout: 'ok\n' })
     expect(dependencies.delay).not.toHaveBeenCalled()
   })
 
@@ -99,6 +99,7 @@ describe('awaitAttemptOutcome', () => {
       dependencies,
     )
     expect(result).toEqual({
+      attempt: 1,
       outcome: 'error',
       exitCode: 1,
       stdout: 'failed\n',
@@ -147,6 +148,7 @@ describe('awaitAttemptOutcome', () => {
     const result = await resultPromise
 
     expect(result).toEqual({
+      attempt: 1,
       outcome: 'success',
       exitCode: 0,
       stdout: '{"ok":true}',
@@ -235,6 +237,7 @@ describe('awaitAttemptOutcome', () => {
     const result = await attemptPromise
 
     expect(result).toEqual({
+      attempt: 1,
       outcome: 'timeout',
       exitCode: null,
       stdout: 'partial\n',
@@ -408,7 +411,7 @@ describe('awaitAttemptOutcome', () => {
 
     const result = await resultPromise
 
-    expect(result).toEqual({ outcome: 'timeout', exitCode: null, stdout: '' })
+    expect(result).toEqual({ attempt: 1, outcome: 'timeout', exitCode: null, stdout: '' })
     resolveCompletion({ exitCode: 1, stdout: '' })
   })
 })
