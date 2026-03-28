@@ -3,7 +3,7 @@ export interface RetrySchedule {
   retryDelayScheduleSeconds: readonly number[]
 }
 
-export function resolveRetryDelaySeconds(
+export function resolveAttemptDelaySeconds(
   attempt: number,
   schedule: RetrySchedule,
 ): number {
