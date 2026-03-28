@@ -107,74 +107,109 @@ describe('executeRetry', () => {
     })
   })
 
-  it.each([
-    { signal: 'SIGTERM' as const, pid: 200 },
-    { signal: 'SIGINT' as const, pid: 201 },
-  ])('interrupts running command and terminates process tree on $signal', async ({
-    signal,
-    pid,
-  }) => {
-    const processOnceSpy = vi
-      .spyOn(process, 'once')
-      .mockImplementation(() => process)
-    const processOffSpy = vi
-      .spyOn(process, 'off')
-      .mockImplementation(() => process)
-    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+  describe('interrupts running command and terminates process tree on signal', () => {
+    async function setupSignalTest(signal: 'SIGTERM' | 'SIGINT', pid: number) {
+      const processOnceSpy = vi
+        .spyOn(process, 'once')
+        .mockImplementation(() => process)
+      const processOffSpy = vi
+        .spyOn(process, 'off')
+        .mockImplementation(() => process)
+      vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
 
-    let resolveCompletion!: (value: {
-      exitCode: number | null
-      stdout: string
-    }) => void
-    const completionPromise = new Promise<{
-      exitCode: number | null
-      stdout: string
-    }>((resolve) => {
-      resolveCompletion = resolve
+      let resolveCompletion!: (value: {
+        exitCode: number | null
+        stdout: string
+      }) => void
+      const completionPromise = new Promise<{
+        exitCode: number | null
+        stdout: string
+      }>((resolve) => {
+        resolveCompletion = resolve
+      })
+
+      let resolveTerminate!: () => void
+      const terminatePromise = new Promise<void>((resolve) => {
+        resolveTerminate = resolve
+      })
+
+      const terminateProcessTree = vi.fn().mockImplementation(() => {
+        resolveTerminate()
+        return Promise.resolve()
+      })
+
+      const runCommand = vi.fn().mockReturnValue({
+        pid,
+        completion: completionPromise,
+        isRunning: () => true,
+      })
+
+      const resultPromise = executeRetry(createRequest({ maxAttempts: 1 }), {
+        runCommand,
+        delay: vi.fn().mockReturnValue(createNeverDelay()),
+        terminateProcessTree,
+      })
+
+      const signalCall = processOnceSpy.mock.calls.find(
+        (call) => call[0] === signal,
+      )
+      const signalHandler = signalCall?.[1] as () => void
+
+      return {
+        processOffSpy,
+        resolveCompletion,
+        terminatePromise,
+        terminateProcessTree,
+        resultPromise,
+        signalHandler,
+      }
+    }
+
+    it.each([
+      { signal: 'SIGTERM' as const, pid: 200 },
+      { signal: 'SIGINT' as const, pid: 201 },
+    ])('terminates process tree on $signal', async ({ signal, pid }) => {
+      const {
+        terminatePromise,
+        terminateProcessTree,
+        signalHandler,
+        resolveCompletion,
+        resultPromise,
+      } = await setupSignalTest(signal, pid)
+
+      expect(signalHandler).toBeDefined()
+      signalHandler()
+
+      await terminatePromise
+      expect(terminateProcessTree).toHaveBeenCalledWith(pid, 1)
+
+      resolveCompletion({ exitCode: null, stdout: '' })
+      await resultPromise
     })
 
-    let resolveTerminate!: () => void
-    const terminatePromise = new Promise<void>((resolve) => {
-      resolveTerminate = resolve
-    })
-
-    const terminateProcessTree = vi.fn().mockImplementation(() => {
-      resolveTerminate()
-      return Promise.resolve()
-    })
-
-    const runCommand = vi.fn().mockReturnValue({
+    it.each([
+      { signal: 'SIGTERM' as const, pid: 200 },
+      { signal: 'SIGINT' as const, pid: 201 },
+    ])('removes signal handlers after interrupt by $signal', async ({
+      signal,
       pid,
-      completion: completionPromise,
-      isRunning: () => true,
+    }) => {
+      const { processOffSpy, signalHandler, resolveCompletion, resultPromise } =
+        await setupSignalTest(signal, pid)
+
+      expect(signalHandler).toBeDefined()
+      signalHandler()
+
+      resolveCompletion({ exitCode: null, stdout: '' })
+      await resultPromise
+
+      const otherSignal = signal === 'SIGTERM' ? 'SIGINT' : 'SIGTERM'
+      expect(processOffSpy).toHaveBeenCalledWith(signal, signalHandler)
+      expect(processOffSpy).toHaveBeenCalledWith(
+        otherSignal,
+        expect.any(Function),
+      )
     })
-
-    const resultPromise = executeRetry(createRequest({ maxAttempts: 1 }), {
-      runCommand,
-      delay: vi.fn().mockReturnValue(createNeverDelay()),
-      terminateProcessTree,
-    })
-
-    const signalCall = processOnceSpy.mock.calls.find(
-      (call) => call[0] === signal,
-    )
-    expect(signalCall).toBeDefined()
-    const signalHandler = signalCall?.[1] as () => void
-
-    signalHandler()
-
-    await terminatePromise
-    expect(terminateProcessTree).toHaveBeenCalledWith(pid, 1)
-
-    resolveCompletion({ exitCode: null, stdout: '' })
-    await resultPromise
-
-    const otherSignal = signal === 'SIGTERM' ? 'SIGINT' : 'SIGTERM'
-    expect(processOffSpy).toHaveBeenCalledWith(signal, signalHandler)
-    expect(processOffSpy).toHaveBeenCalledWith(
-      otherSignal,
-      expect.any(Function),
-    )
   })
 
   it('stops when one attempt succeeds', async () => {

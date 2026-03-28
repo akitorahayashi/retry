@@ -39,48 +39,72 @@ describe('readInputs', () => {
     })
   })
 
-  it('parses all optional fields', () => {
+  it.each([
+    {
+      field: 'shell',
+      value: '/bin/bash',
+      expectedProperty: 'shell',
+      expectedValue: '/bin/bash',
+    },
+    {
+      field: 'timeout_seconds',
+      value: '15',
+      expectedProperty: 'timeoutSeconds',
+      expectedValue: 15,
+    },
+    {
+      field: 'retry_delay_seconds',
+      value: '3',
+      expectedProperty: 'retryDelaySeconds',
+      expectedValue: 3,
+    },
+    {
+      field: 'retry_delay_schedule_seconds',
+      value: '1,2,5',
+      expectedProperty: 'retryDelayScheduleSeconds',
+      expectedValue: [1, 2, 5],
+    },
+    {
+      field: 'retry_on',
+      value: 'error',
+      expectedProperty: 'retryOn',
+      expectedValue: 'error',
+    },
+    {
+      field: 'retry_on_exit_codes',
+      value: '1,2,9',
+      expectedProperty: 'retryOnExitCodes',
+      expectedValue: new Set([1, 2, 9]),
+    },
+    {
+      field: 'continue_on_error',
+      value: 'yes',
+      expectedProperty: 'continueOnError',
+      expectedValue: true,
+    },
+    {
+      field: 'termination_grace_seconds',
+      value: '2',
+      expectedProperty: 'terminationGraceSeconds',
+      expectedValue: 2,
+    },
+  ])('parses optional field $field', ({
+    field,
+    value,
+    expectedProperty,
+    expectedValue,
+  }) => {
     mockedGetInput.mockImplementation((name: string) => {
-      switch (name) {
-        case 'command':
-          return 'npm run check'
-        case 'max_attempts':
-          return '5'
-        case 'shell':
-          return '/bin/bash'
-        case 'timeout_seconds':
-          return '15'
-        case 'retry_delay_seconds':
-          return '3'
-        case 'retry_delay_schedule_seconds':
-          return '1,2,5'
-        case 'retry_on':
-          return 'error'
-        case 'retry_on_exit_codes':
-          return '1,2,9'
-        case 'continue_on_error':
-          return 'yes'
-        case 'termination_grace_seconds':
-          return '2'
-        default:
-          return ''
-      }
+      if (name === 'command') return 'npm run check'
+      if (name === 'max_attempts') return '5'
+      if (name === field) return value
+      return ''
     })
 
     const result = readInputs()
-    expect(result.retryOnExitCodes).toEqual(new Set([1, 2, 9]))
-    expect(result).toEqual({
-      command: 'npm run check',
-      maxAttempts: 5,
-      shell: '/bin/bash',
-      timeoutSeconds: 15,
-      retryDelaySeconds: 3,
-      retryDelayScheduleSeconds: [1, 2, 5],
-      retryOn: 'error',
-      retryOnExitCodes: new Set([1, 2, 9]),
-      continueOnError: true,
-      terminationGraceSeconds: 2,
-    })
+    expect(
+      result[expectedProperty as keyof ReturnType<typeof readInputs>],
+    ).toEqual(expectedValue)
   })
 
   it('throws when required command is missing', () => {
@@ -128,57 +152,23 @@ describe('readInputs', () => {
     expect(() => readInputs()).toThrow("Input 'max_attempts' must be >= 1.")
   })
 
-  it('throws when numeric value is not an integer', () => {
+  it.each([
+    { field: 'max_attempts', value: '3.5' },
+    { field: 'timeout_seconds', value: '10.2' },
+    { field: 'timeout_seconds', value: 'abc' },
+    { field: 'retry_delay_seconds', value: '1.5' },
+  ])('throws when numeric value $field is not an integer', ({
+    field,
+    value,
+  }) => {
     mockedGetInput.mockImplementation((name: string) => {
-      switch (name) {
-        case 'command':
-          return 'echo ok'
-        case 'max_attempts':
-          return '3.5'
-        case 'timeout_seconds':
-          return '10.2'
-        default:
-          return ''
-      }
+      if (name === 'command') return 'echo ok'
+      if (name === 'max_attempts' && field !== 'max_attempts') return '3'
+      if (name === field) return value
+      return ''
     })
 
-    expect(() => readInputs()).toThrow(
-      "Input 'max_attempts' must be an integer.",
-    )
-
-    mockedGetInput.mockImplementation((name: string) => {
-      switch (name) {
-        case 'command':
-          return 'echo ok'
-        case 'max_attempts':
-          return '3'
-        case 'timeout_seconds':
-          return 'abc'
-        default:
-          return ''
-      }
-    })
-
-    expect(() => readInputs()).toThrow(
-      "Input 'timeout_seconds' must be an integer.",
-    )
-
-    mockedGetInput.mockImplementation((name: string) => {
-      switch (name) {
-        case 'command':
-          return 'echo ok'
-        case 'max_attempts':
-          return '3'
-        case 'retry_delay_seconds':
-          return '1.5'
-        default:
-          return ''
-      }
-    })
-
-    expect(() => readInputs()).toThrow(
-      "Input 'retry_delay_seconds' must be an integer.",
-    )
+    expect(() => readInputs()).toThrow(`Input '${field}' must be an integer.`)
   })
 
   it.each([
