@@ -1,34 +1,10 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { registerCommandTerminationOnSignal } from '../../src/app/execute-retry/terminate-command-on-signal'
-import type { RunningCommand } from '../../src/adapters/run-shell-command'
-
-function createProcessSpies() {
-  let resolveExit!: (code: number) => void
-  const exitDone = new Promise<number>((resolve) => {
-    resolveExit = resolve
-  })
-
-  return {
-    once: vi.spyOn(process, 'once').mockReturnThis(),
-    off: vi.spyOn(process, 'off').mockReturnThis(),
-    exit: vi
-      .spyOn(process, 'exit')
-      .mockImplementation((code?: number | string | null) => {
-        resolveExit(Number(code))
-        return undefined as never
-      }),
-    exitDone,
-  }
-}
-
-function findSignalHandler(
-  calls: ReadonlyArray<ReadonlyArray<unknown>>,
-  signal: 'SIGTERM' | 'SIGINT',
-): (() => void) | undefined {
-  return calls.find((call) => call[0] === signal)?.[1] as
-    | (() => void)
-    | undefined
-}
+import {
+  createProcessSpies,
+  findSignalHandler,
+} from '../fixtures/process-fixtures'
+import { createCompletedCommand } from '../fixtures/execute-retry-fixtures'
 
 describe('registerCommandTerminationOnSignal', () => {
   beforeEach(() => {
@@ -95,11 +71,10 @@ describe('registerCommandTerminationOnSignal', () => {
 
   it('terminates process tree and exits with 0 on SIGTERM', async () => {
     const processSpies = createProcessSpies()
-    const runningCommand: RunningCommand = {
-      pid: 1234,
-      isRunning: () => true,
-      completion: Promise.resolve({ exitCode: 0, stdout: '' }),
-    }
+    const runningCommand = createCompletedCommand(0, '')
+    // override isRunning to match the test intent
+    runningCommand.isRunning = () => true
+    runningCommand.pid = 1234
 
     const params = {
       getRunningCommand: vi.fn().mockReturnValue(runningCommand),
@@ -169,11 +144,10 @@ describe('registerCommandTerminationOnSignal', () => {
 
   it('catches non-Error from terminateProcessTree and exits with 0', async () => {
     const processSpies = createProcessSpies()
-    const runningCommand: RunningCommand = {
-      pid: 1234,
-      isRunning: () => true,
-      completion: Promise.resolve({ exitCode: 0, stdout: '' }),
-    }
+    const runningCommand = createCompletedCommand(0, '')
+    // override isRunning to match the test intent
+    runningCommand.isRunning = () => true
+    runningCommand.pid = 1234
 
     const params = {
       getRunningCommand: vi.fn().mockReturnValue(runningCommand),
@@ -197,11 +171,10 @@ describe('registerCommandTerminationOnSignal', () => {
 
   it('terminates process tree and exits with 0 on SIGINT', async () => {
     const processSpies = createProcessSpies()
-    const runningCommand: RunningCommand = {
-      pid: 1234,
-      isRunning: () => true,
-      completion: Promise.resolve({ exitCode: 0, stdout: '' }),
-    }
+    const runningCommand = createCompletedCommand(0, '')
+    // override isRunning to match the test intent
+    runningCommand.isRunning = () => true
+    runningCommand.pid = 1234
 
     const params = {
       getRunningCommand: vi.fn().mockReturnValue(runningCommand),
@@ -225,11 +198,10 @@ describe('registerCommandTerminationOnSignal', () => {
 
   it('catches terminateProcessTree error and exits with 0', async () => {
     const processSpies = createProcessSpies()
-    const runningCommand: RunningCommand = {
-      pid: 1234,
-      isRunning: () => true,
-      completion: Promise.resolve({ exitCode: 0, stdout: '' }),
-    }
+    const runningCommand = createCompletedCommand(0, '')
+    // override isRunning to match the test intent
+    runningCommand.isRunning = () => true
+    runningCommand.pid = 1234
 
     const params = {
       getRunningCommand: vi.fn().mockReturnValue(runningCommand),
