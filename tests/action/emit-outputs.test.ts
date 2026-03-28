@@ -23,4 +23,21 @@ describe('emitOutputs', () => {
     expect(setOutput).toHaveBeenCalledWith('succeeded', 'true')
     expect(setOutput).toHaveBeenCalledWith('final_stdout', '{"ok":true}')
   })
+
+  it('emits "none" for final_exit_code when exitCode is null', () => {
+    const setOutput = vi.spyOn(core, 'setOutput').mockImplementation(() => {})
+
+    emitOutputs({
+      attempt: 1,
+      exitCode: null,
+      outcome: 'timeout',
+      stdout: '',
+    })
+
+    expect(setOutput).toHaveBeenCalledWith('attempts', 1)
+    expect(setOutput).toHaveBeenCalledWith('final_exit_code', 'none')
+    expect(setOutput).toHaveBeenCalledWith('final_outcome', 'timeout')
+    expect(setOutput).toHaveBeenCalledWith('succeeded', 'false')
+    expect(setOutput).toHaveBeenCalledWith('final_stdout', '')
+  })
 })

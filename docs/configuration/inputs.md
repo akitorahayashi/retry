@@ -24,7 +24,7 @@ The action emits:
 | Output | Meaning |
 |--------|---------|
 | `attempts` | Number of attempts that executed |
-| `final_exit_code` | Final command exit code, or empty when no code is available |
+| `final_exit_code` | Final command exit code, or `'none'` when no code is available |
 | `final_outcome` | Final attempt outcome (`success`, `error`, `timeout`) |
 | `succeeded` | `true` when any attempt succeeded, otherwise `false` |
 | `final_stdout` | Stdout emitted by the final attempt |
