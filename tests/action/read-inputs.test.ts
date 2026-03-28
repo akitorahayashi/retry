@@ -40,15 +40,60 @@ describe('readInputs', () => {
   })
 
   it.each([
-    { field: 'shell', value: '/bin/bash', expectedProperty: 'shell', expectedValue: '/bin/bash' },
-    { field: 'timeout_seconds', value: '15', expectedProperty: 'timeoutSeconds', expectedValue: 15 },
-    { field: 'retry_delay_seconds', value: '3', expectedProperty: 'retryDelaySeconds', expectedValue: 3 },
-    { field: 'retry_delay_schedule_seconds', value: '1,2,5', expectedProperty: 'retryDelayScheduleSeconds', expectedValue: [1, 2, 5] },
-    { field: 'retry_on', value: 'error', expectedProperty: 'retryOn', expectedValue: 'error' },
-    { field: 'retry_on_exit_codes', value: '1,2,9', expectedProperty: 'retryOnExitCodes', expectedValue: new Set([1, 2, 9]) },
-    { field: 'continue_on_error', value: 'yes', expectedProperty: 'continueOnError', expectedValue: true },
-    { field: 'termination_grace_seconds', value: '2', expectedProperty: 'terminationGraceSeconds', expectedValue: 2 },
-  ])('parses optional field $field', ({ field, value, expectedProperty, expectedValue }) => {
+    {
+      field: 'shell',
+      value: '/bin/bash',
+      expectedProperty: 'shell',
+      expectedValue: '/bin/bash',
+    },
+    {
+      field: 'timeout_seconds',
+      value: '15',
+      expectedProperty: 'timeoutSeconds',
+      expectedValue: 15,
+    },
+    {
+      field: 'retry_delay_seconds',
+      value: '3',
+      expectedProperty: 'retryDelaySeconds',
+      expectedValue: 3,
+    },
+    {
+      field: 'retry_delay_schedule_seconds',
+      value: '1,2,5',
+      expectedProperty: 'retryDelayScheduleSeconds',
+      expectedValue: [1, 2, 5],
+    },
+    {
+      field: 'retry_on',
+      value: 'error',
+      expectedProperty: 'retryOn',
+      expectedValue: 'error',
+    },
+    {
+      field: 'retry_on_exit_codes',
+      value: '1,2,9',
+      expectedProperty: 'retryOnExitCodes',
+      expectedValue: new Set([1, 2, 9]),
+    },
+    {
+      field: 'continue_on_error',
+      value: 'yes',
+      expectedProperty: 'continueOnError',
+      expectedValue: true,
+    },
+    {
+      field: 'termination_grace_seconds',
+      value: '2',
+      expectedProperty: 'terminationGraceSeconds',
+      expectedValue: 2,
+    },
+  ])('parses optional field $field', ({
+    field,
+    value,
+    expectedProperty,
+    expectedValue,
+  }) => {
     mockedGetInput.mockImplementation((name: string) => {
       if (name === 'command') return 'npm run check'
       if (name === 'max_attempts') return '5'
@@ -57,7 +102,9 @@ describe('readInputs', () => {
     })
 
     const result = readInputs()
-    expect(result[expectedProperty as keyof ReturnType<typeof readInputs>]).toEqual(expectedValue)
+    expect(
+      result[expectedProperty as keyof ReturnType<typeof readInputs>],
+    ).toEqual(expectedValue)
   })
 
   it('throws when required command is missing', () => {
@@ -110,7 +157,10 @@ describe('readInputs', () => {
     { field: 'timeout_seconds', value: '10.2' },
     { field: 'timeout_seconds', value: 'abc' },
     { field: 'retry_delay_seconds', value: '1.5' },
-  ])('throws when numeric value $field is not an integer', ({ field, value }) => {
+  ])('throws when numeric value $field is not an integer', ({
+    field,
+    value,
+  }) => {
     mockedGetInput.mockImplementation((name: string) => {
       if (name === 'command') return 'echo ok'
       if (name === 'max_attempts' && field !== 'max_attempts') return '3'
@@ -118,9 +168,7 @@ describe('readInputs', () => {
       return ''
     })
 
-    expect(() => readInputs()).toThrow(
-      `Input '${field}' must be an integer.`,
-    )
+    expect(() => readInputs()).toThrow(`Input '${field}' must be an integer.`)
   })
 
   it.each([

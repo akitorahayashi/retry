@@ -190,13 +190,12 @@ describe('executeRetry', () => {
     it.each([
       { signal: 'SIGTERM' as const, pid: 200 },
       { signal: 'SIGINT' as const, pid: 201 },
-    ])('removes signal handlers after interrupt by $signal', async ({ signal, pid }) => {
-      const {
-        processOffSpy,
-        signalHandler,
-        resolveCompletion,
-        resultPromise,
-      } = await setupSignalTest(signal, pid)
+    ])('removes signal handlers after interrupt by $signal', async ({
+      signal,
+      pid,
+    }) => {
+      const { processOffSpy, signalHandler, resolveCompletion, resultPromise } =
+        await setupSignalTest(signal, pid)
 
       expect(signalHandler).toBeDefined()
       signalHandler()
