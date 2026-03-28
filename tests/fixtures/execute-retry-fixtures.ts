@@ -29,7 +29,9 @@ export function createExecuteRetryRequest(
   }
 }
 
-export function createCommandSpec(overrides?: Partial<CommandSpec>): CommandSpec {
+export function createCommandSpec(
+  overrides?: Partial<CommandSpec>,
+): CommandSpec {
   return {
     command: 'echo test',
     shell: 'bash',
