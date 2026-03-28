@@ -46,8 +46,12 @@ describe('executeAttempt', () => {
       stdout: 'ok\n',
     }
 
-    vi.mocked(awaitAttemptOutcomeModule.awaitAttemptOutcome).mockResolvedValue(expectedResult)
+    vi.mocked(awaitAttemptOutcomeModule.awaitAttemptOutcome).mockResolvedValue(
+      expectedResult,
+    )
 
-    await expect(executeAttempt(command, 1, dependencies)).resolves.toEqual(expectedResult)
+    await expect(executeAttempt(command, 1, dependencies)).resolves.toEqual(
+      expectedResult,
+    )
   })
 })
