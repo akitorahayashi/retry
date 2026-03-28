@@ -86,4 +86,15 @@ describe('shouldRetryFailure', () => {
       }),
     ).toBe(false)
   })
+
+  it('handles exhaustive check for invalid outcome', () => {
+    // We intentionally pass an invalid outcome to test the exhaustiveness default case
+    const invalidOutcome: any = 'invalid'
+
+    expect(
+      shouldRetryFailure(invalidOutcome, 0, {
+        retryOn: 'any',
+      }),
+    ).toBe('invalid')
+  })
 })
