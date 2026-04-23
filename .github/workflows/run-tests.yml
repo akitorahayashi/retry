@@ -23,4 +23,4 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Run Vitest
-        run: just test
+        run: mise exec -- just test

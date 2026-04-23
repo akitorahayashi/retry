@@ -1,6 +1,0 @@
-# jlo provision configuration
-# List the tools you want to install (options: jlo provision list)
-
-tools:
-  - gh
-  - just

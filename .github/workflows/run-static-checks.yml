@@ -23,4 +23,4 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Run Repository Checks
-        run: just check
+        run: mise exec -- just check

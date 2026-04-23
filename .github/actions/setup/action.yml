@@ -1,11 +1,15 @@
 name: Setup Node Environment
-description: Install Node.js, setup just, and install npm dependencies
+description: Install Node.js, setup mise-managed tools, and install npm dependencies
 
 inputs:
   node-version-file:
     description: Node.js version file path
     required: false
     default: .nvmrc
+  mise-version:
+    description: mise version to install
+    required: false
+    default: '2026.2.19'
 
 runs:
   using: composite
@@ -16,11 +20,12 @@ runs:
         node-version-file: ${{ inputs.node-version-file }}
         cache: npm
 
-    - name: Setup just
-      uses: extractions/setup-just@dd310ad5a97d8e7b41793f8ef055398d51ad4de6
+    - name: Setup mise with locked tools
+      uses: jdx/mise-action@v3
       with:
-        just-version: 1.46.0
+        version: ${{ inputs.mise-version }}
+        install_args: --locked
 
     - name: Run just setup
-      run: just setup
+      run: mise exec -- just setup
       shell: bash
