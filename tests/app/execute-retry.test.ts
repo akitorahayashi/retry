@@ -1,62 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { RunningCommand } from '../../src/adapters/run-shell-command'
+import { executeRetry } from '../../src/app/execute-retry'
 import {
-  executeRetry,
-  type ExecuteRetryRequest,
-} from '../../src/app/execute-retry'
-
-interface ExecuteRetryRequestOverrides {
-  maxAttempts?: ExecuteRetryRequest['maxAttempts']
-  command?: Partial<ExecuteRetryRequest['command']>
-  policy?: Partial<ExecuteRetryRequest['policy']>
-  schedule?: Partial<ExecuteRetryRequest['schedule']>
-}
-
-function createRequest(
-  overrides?: ExecuteRetryRequestOverrides,
-): ExecuteRetryRequest {
-  const defaultCommand = {
-    command: 'echo test',
-    shell: 'bash',
-    timeoutSeconds: undefined,
-    terminationGraceSeconds: 1,
-    ...(overrides?.command || {}),
-  }
-
-  const defaultPolicy = {
-    retryOn: 'any' as const,
-    retryOnExitCodes: undefined,
-    ...(overrides?.policy || {}),
-  }
-
-  const defaultSchedule = {
-    retryDelaySeconds: 0,
-    retryDelayScheduleSeconds: [],
-    ...(overrides?.schedule || {}),
-  }
-
-  return {
-    maxAttempts: overrides?.maxAttempts ?? 3,
-    command: defaultCommand,
-    policy: defaultPolicy,
-    schedule: defaultSchedule,
-  }
-}
-
-function completed(exitCode: number | null, stdout = ''): RunningCommand {
-  return {
-    pid: 100,
-    completion: Promise.resolve({ exitCode, stdout }),
-    isRunning: () => false,
-  }
-}
-
-function createNeverDelay() {
-  return {
-    promise: new Promise<void>(() => {}),
-    cancel: vi.fn(),
-  }
-}
+  createExecuteRetryRequest,
+  createCompletedCommand,
+  createNeverDelay,
+} from '../fixtures/execute-retry-fixtures'
 
 describe('executeRetry', () => {
   it('returns timeout and terminates process tree when timeout wins', async () => {
@@ -81,7 +29,7 @@ describe('executeRetry', () => {
     })
 
     const result = await executeRetry(
-      createRequest({
+      createExecuteRetryRequest({
         maxAttempts: 1,
         command: {
           timeoutSeconds: 5,
@@ -149,11 +97,14 @@ describe('executeRetry', () => {
       isRunning: () => true,
     })
 
-    const resultPromise = executeRetry(createRequest({ maxAttempts: 1 }), {
-      runCommand,
-      delay: vi.fn().mockReturnValue(createNeverDelay()),
-      terminateProcessTree,
-    })
+    const resultPromise = executeRetry(
+      createExecuteRetryRequest({ maxAttempts: 1 }),
+      {
+        runCommand,
+        delay: vi.fn().mockReturnValue(createNeverDelay()),
+        terminateProcessTree,
+      },
+    )
 
     const signalCall = processOnceSpy.mock.calls.find(
       (call) => call[0] === signal,
@@ -180,10 +131,10 @@ describe('executeRetry', () => {
   it('stops when one attempt succeeds', async () => {
     const runCommand = vi
       .fn()
-      .mockReturnValueOnce(completed(1, 'first attempt\n'))
-      .mockReturnValueOnce(completed(0, '{"ok":true}'))
+      .mockReturnValueOnce(createCompletedCommand(1, 'first attempt\n'))
+      .mockReturnValueOnce(createCompletedCommand(0, '{"ok":true}'))
 
-    const result = await executeRetry(createRequest(), {
+    const result = await executeRetry(createExecuteRetryRequest(), {
       runCommand,
       delay: vi.fn().mockReturnValue(createNeverDelay()),
       terminateProcessTree: vi.fn().mockResolvedValue(undefined),
@@ -199,10 +150,10 @@ describe('executeRetry', () => {
   })
 
   it('stops without retry when policy excludes error failures', async () => {
-    const runCommand = vi.fn().mockReturnValue(completed(9))
+    const runCommand = vi.fn().mockReturnValue(createCompletedCommand(9))
 
     const result = await executeRetry(
-      createRequest({ policy: { retryOn: 'timeout' } }),
+      createExecuteRetryRequest({ policy: { retryOn: 'timeout' } }),
       {
         runCommand,
         delay: vi.fn().mockReturnValue(createNeverDelay()),
@@ -222,11 +173,13 @@ describe('executeRetry', () => {
   it('retries only configured exit codes when filter is provided', async () => {
     const runCommand = vi
       .fn()
-      .mockReturnValueOnce(completed(2))
-      .mockReturnValueOnce(completed(3))
+      .mockReturnValueOnce(createCompletedCommand(2))
+      .mockReturnValueOnce(createCompletedCommand(3))
 
     const result = await executeRetry(
-      createRequest({ policy: { retryOnExitCodes: new Set([2, 7]) } }),
+      createExecuteRetryRequest({
+        policy: { retryOnExitCodes: new Set([2, 7]) },
+      }),
       {
         runCommand,
         delay: vi.fn().mockReturnValue(createNeverDelay()),
@@ -246,9 +199,9 @@ describe('executeRetry', () => {
   it('applies scheduled retry delay values ahead of fixed delay', async () => {
     const runCommand = vi
       .fn()
-      .mockReturnValueOnce(completed(1))
-      .mockReturnValueOnce(completed(2))
-      .mockReturnValueOnce(completed(3))
+      .mockReturnValueOnce(createCompletedCommand(1))
+      .mockReturnValueOnce(createCompletedCommand(2))
+      .mockReturnValueOnce(createCompletedCommand(3))
 
     const delayFn = vi.fn().mockImplementation((ms) => {
       // If ms is not a small sleep, it's likely a timeout or not our expected sleep
@@ -262,7 +215,7 @@ describe('executeRetry', () => {
     })
 
     const result = await executeRetry(
-      createRequest({
+      createExecuteRetryRequest({
         schedule: {
           retryDelaySeconds: 10,
           retryDelayScheduleSeconds: [1, 5],
@@ -285,11 +238,14 @@ describe('executeRetry', () => {
       throw new Error('spawn failed')
     })
 
-    const result = await executeRetry(createRequest({ maxAttempts: 2 }), {
-      runCommand,
-      delay: vi.fn().mockReturnValue(createNeverDelay()),
-      terminateProcessTree: vi.fn().mockResolvedValue(undefined),
-    })
+    const result = await executeRetry(
+      createExecuteRetryRequest({ maxAttempts: 2 }),
+      {
+        runCommand,
+        delay: vi.fn().mockReturnValue(createNeverDelay()),
+        terminateProcessTree: vi.fn().mockResolvedValue(undefined),
+      },
+    )
 
     expect(result).toEqual({
       attempt: 2,
@@ -308,11 +264,14 @@ describe('executeRetry', () => {
       isRunning: () => false,
     })
 
-    const result = await executeRetry(createRequest({ maxAttempts: 2 }), {
-      runCommand,
-      delay: vi.fn().mockReturnValue(createNeverDelay()),
-      terminateProcessTree: vi.fn().mockResolvedValue(undefined),
-    })
+    const result = await executeRetry(
+      createExecuteRetryRequest({ maxAttempts: 2 }),
+      {
+        runCommand,
+        delay: vi.fn().mockReturnValue(createNeverDelay()),
+        terminateProcessTree: vi.fn().mockResolvedValue(undefined),
+      },
+    )
 
     expect(result).toEqual({
       attempt: 2,
