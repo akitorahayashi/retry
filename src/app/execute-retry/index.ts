@@ -4,7 +4,7 @@ import type { RetryPolicy } from '../../domain/policy'
 import { shouldRetryFailure } from '../../domain/policy'
 import type { AttemptResult } from '../../domain/result'
 import {
-  resolveRetryDelaySeconds,
+  resolveAttemptDelaySeconds,
   type RetrySchedule,
 } from '../../domain/schedule'
 import {
@@ -52,15 +52,15 @@ export async function executeRetry(
       return finalAttempt
     }
 
-    const delaySeconds = resolveRetryDelaySeconds(attempt, schedule)
+    const attemptDelaySeconds = resolveAttemptDelaySeconds(attempt, schedule)
 
     core.warning(
       `Attempt ${attempt} failed with ${finalAttempt.outcome} (exit code: ${formatExitCode(finalAttempt.exitCode)}). Retrying.`,
     )
 
-    if (delaySeconds > 0) {
-      core.info(`Waiting ${delaySeconds}s before next attempt.`)
-      await dependencies.delay(delaySeconds * 1000).promise
+    if (attemptDelaySeconds > 0) {
+      core.info(`Waiting ${attemptDelaySeconds}s before next attempt.`)
+      await dependencies.delay(attemptDelaySeconds * 1000).promise
     }
   }
 
