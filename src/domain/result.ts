@@ -1,3 +1,5 @@
+export type AttemptOutcome = 'success' | 'error' | 'timeout'
+
 export type AttemptResult =
   | {
       attempt: number

@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { executeAttempt } from '../../src/app/execute-retry/execute-attempt'
 import type { ExecuteRetryDependencies } from '../../src/app/execute-retry/execute-retry-dependencies'
 import type { CommandSpec } from '../../src/domain/command'
-import type { ExecutionResult } from '../../src/app/execute-retry/await-attempt-outcome'
+import type { AttemptResult } from '../../src/domain/result'
 import * as awaitAttemptOutcomeModule from '../../src/app/execute-retry/await-attempt-outcome'
 
 vi.mock(
@@ -21,7 +21,7 @@ describe('executeAttempt', () => {
     vi.clearAllMocks()
   })
 
-  it('coerces impossible success-with-null-exitCode into an error outcome', async () => {
+  it('returns the result of awaitAttemptOutcome directly', async () => {
     const command: CommandSpec = {
       command: 'echo "test"',
       shell: 'bash',
@@ -32,24 +32,26 @@ describe('executeAttempt', () => {
     const dependencies: ExecuteRetryDependencies = {
       runCommand: vi.fn().mockReturnValue({
         pid: 1234,
-        completion: Promise.resolve({ exitCode: null, stdout: '' }),
+        completion: Promise.resolve({ exitCode: 0, stdout: 'ok\n' }),
         isRunning: () => false,
       }),
       delay: vi.fn(),
       terminateProcessTree: vi.fn().mockResolvedValue(undefined),
     }
 
-    vi.mocked(awaitAttemptOutcomeModule.awaitAttemptOutcome).mockResolvedValue({
-      outcome: 'success',
-      exitCode: null,
-      stdout: '',
-    } as unknown as ExecutionResult)
-
-    await expect(executeAttempt(command, 1, dependencies)).resolves.toEqual({
+    const expectedResult: AttemptResult = {
       attempt: 1,
-      outcome: 'error',
-      exitCode: null,
-      stdout: '',
-    })
+      outcome: 'success',
+      exitCode: 0,
+      stdout: 'ok\n',
+    }
+
+    vi.mocked(awaitAttemptOutcomeModule.awaitAttemptOutcome).mockResolvedValue(
+      expectedResult,
+    )
+
+    await expect(executeAttempt(command, 1, dependencies)).resolves.toEqual(
+      expectedResult,
+    )
   })
 })

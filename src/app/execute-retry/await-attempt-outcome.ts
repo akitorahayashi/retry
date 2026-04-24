@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import type { RunningCommand } from '../../adapters/run-shell-command'
 import type { CommandSpec } from '../../domain/command'
-import type { AttemptOutcome } from '../../domain/policy'
+import type { AttemptOutcome, AttemptResult } from '../../domain/result'
 import { formatExitCode } from './format-exit-code'
 
 interface AwaitAttemptOutcomeDependencies {
@@ -12,11 +12,6 @@ interface AwaitAttemptOutcomeDependencies {
   terminateProcessTree: (pid: number, graceSeconds: number) => Promise<void>
 }
 
-export type ExecutionResult =
-  | { outcome: 'success'; exitCode: number; stdout: string }
-  | { outcome: 'error'; exitCode: number | null; stdout: string }
-  | { outcome: 'timeout'; exitCode: null; stdout: string }
-
 type RaceOutcome =
   | { type: 'completion'; exitCode: number | null; stdout: string }
   | { type: 'timeout' }
@@ -26,7 +21,7 @@ export async function awaitAttemptOutcome(
   attempt: number,
   runningCommand: RunningCommand,
   dependencies: AwaitAttemptOutcomeDependencies,
-): Promise<ExecutionResult> {
+): Promise<AttemptResult> {
   const completionPromise: Promise<RaceOutcome> =
     runningCommand.completion.then((completion) => ({
       type: 'completion',
@@ -41,12 +36,14 @@ export async function awaitAttemptOutcome(
     }
     if (completion.exitCode === 0) {
       return {
+        attempt,
         outcome: 'success',
         exitCode: completion.exitCode,
         stdout: completion.stdout,
       }
     }
     return {
+      attempt,
       outcome: 'error',
       exitCode: completion.exitCode,
       stdout: completion.stdout,
@@ -64,12 +61,14 @@ export async function awaitAttemptOutcome(
     if (result.type === 'completion') {
       if (result.exitCode === 0) {
         return {
+          attempt,
           outcome: 'success',
           exitCode: result.exitCode,
           stdout: result.stdout,
         }
       }
       return {
+        attempt,
         outcome: 'error',
         exitCode: result.exitCode,
         stdout: result.stdout,
@@ -105,6 +104,7 @@ export async function awaitAttemptOutcome(
           `Process pid=${runningCommand.pid} failed to complete after termination. Returning safe outcome.`,
         )
         return {
+          attempt,
           outcome: 'timeout',
           exitCode: null,
           stdout: '',
@@ -114,6 +114,7 @@ export async function awaitAttemptOutcome(
       // For timeout outcomes, the exit code from a terminated process isn't
       // representative of the command's execution, so we always use null.
       return {
+        attempt,
         outcome: 'timeout',
         exitCode: null,
         stdout: finalCompletion.stdout,
