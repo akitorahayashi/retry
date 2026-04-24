@@ -41,12 +41,6 @@ export async function executeAttempt(
       logAttemptCompletion(attempt, result.outcome, result.exitCode)
 
       if (result.outcome === 'success') {
-        if (result.exitCode === null) {
-          throw new Error(
-            'Successful attempt must include a numeric exit code.',
-          )
-        }
-
         return {
           attempt,
           outcome: 'success',
