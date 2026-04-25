@@ -26,16 +26,19 @@ describe('readInputs', () => {
     })
 
     expect(readInputs()).toEqual({
-      command: 'npm test',
-      maxAttempts: 3,
-      shell: 'bash',
-      timeoutSeconds: undefined,
-      retryDelaySeconds: 0,
-      retryDelayScheduleSeconds: [],
-      retryOn: 'any',
-      retryOnExitCodes: undefined,
-      continueOnError: false,
-      terminationGraceSeconds: 5,
+      ok: true,
+      value: {
+        command: 'npm test',
+        maxAttempts: 3,
+        shell: 'bash',
+        timeoutSeconds: undefined,
+        retryDelaySeconds: 0,
+        retryDelayScheduleSeconds: [],
+        retryOn: 'any',
+        retryOnExitCodes: undefined,
+        continueOnError: false,
+        terminationGraceSeconds: 5,
+      },
     })
   })
 
@@ -68,33 +71,41 @@ describe('readInputs', () => {
     })
 
     const result = readInputs()
-    expect(result.retryOnExitCodes).toEqual(new Set([1, 2, 9]))
     expect(result).toEqual({
-      command: 'npm run check',
-      maxAttempts: 5,
-      shell: '/bin/bash',
-      timeoutSeconds: 15,
-      retryDelaySeconds: 3,
-      retryDelayScheduleSeconds: [1, 2, 5],
-      retryOn: 'error',
-      retryOnExitCodes: new Set([1, 2, 9]),
-      continueOnError: true,
-      terminationGraceSeconds: 2,
+      ok: true,
+      value: {
+        command: 'npm run check',
+        maxAttempts: 5,
+        shell: '/bin/bash',
+        timeoutSeconds: 15,
+        retryDelaySeconds: 3,
+        retryDelayScheduleSeconds: [1, 2, 5],
+        retryOn: 'error',
+        retryOnExitCodes: new Set([1, 2, 9]),
+        continueOnError: true,
+        terminationGraceSeconds: 2,
+      },
     })
   })
 
-  it('throws when required command is missing', () => {
+  it('returns error when required command is missing', () => {
     mockedGetInput.mockImplementation((name: string) => {
       if (name === 'command') {
         return ' '
       }
-      return '1'
+      if (name === 'max_attempts') {
+        return '1'
+      }
+      return ''
     })
 
-    expect(() => readInputs()).toThrow("Input 'command' is required.")
+    expect(readInputs()).toEqual({
+      ok: false,
+      errors: ["Input 'command' is required."],
+    })
   })
 
-  it('throws for invalid retry_on value', () => {
+  it('returns error for invalid retry_on value', () => {
     mockedGetInput.mockImplementation((name: string) => {
       switch (name) {
         case 'command':
@@ -108,12 +119,13 @@ describe('readInputs', () => {
       }
     })
 
-    expect(() => readInputs()).toThrow(
-      "Input 'retry_on' must be one of: any, error, timeout.",
-    )
+    expect(readInputs()).toEqual({
+      ok: false,
+      errors: ["Input 'retry_on' must be one of: any, error, timeout."],
+    })
   })
 
-  it('throws when numeric value violates minimum', () => {
+  it('returns error when numeric value violates minimum', () => {
     mockedGetInput.mockImplementation((name: string) => {
       switch (name) {
         case 'command':
@@ -125,10 +137,13 @@ describe('readInputs', () => {
       }
     })
 
-    expect(() => readInputs()).toThrow("Input 'max_attempts' must be >= 1.")
+    expect(readInputs()).toEqual({
+      ok: false,
+      errors: ["Input 'max_attempts' must be >= 1."],
+    })
   })
 
-  it('throws when numeric value is not an integer', () => {
+  it('returns error when numeric value is not an integer', () => {
     mockedGetInput.mockImplementation((name: string) => {
       switch (name) {
         case 'command':
@@ -142,9 +157,13 @@ describe('readInputs', () => {
       }
     })
 
-    expect(() => readInputs()).toThrow(
-      "Input 'max_attempts' must be an integer.",
-    )
+    expect(readInputs()).toEqual({
+      ok: false,
+      errors: [
+        "Input 'max_attempts' must be an integer.",
+        "Input 'timeout_seconds' must be an integer.",
+      ],
+    })
 
     mockedGetInput.mockImplementation((name: string) => {
       switch (name) {
@@ -159,9 +178,10 @@ describe('readInputs', () => {
       }
     })
 
-    expect(() => readInputs()).toThrow(
-      "Input 'timeout_seconds' must be an integer.",
-    )
+    expect(readInputs()).toEqual({
+      ok: false,
+      errors: ["Input 'timeout_seconds' must be an integer."],
+    })
 
     mockedGetInput.mockImplementation((name: string) => {
       switch (name) {
@@ -176,9 +196,10 @@ describe('readInputs', () => {
       }
     })
 
-    expect(() => readInputs()).toThrow(
-      "Input 'retry_delay_seconds' must be an integer.",
-    )
+    expect(readInputs()).toEqual({
+      ok: false,
+      errors: ["Input 'retry_delay_seconds' must be an integer."],
+    })
   })
 
   it.each([
@@ -211,10 +232,13 @@ describe('readInputs', () => {
     })
 
     const result = readInputs()
-    expect(result.continueOnError).toBe(expected)
+    if (!result.ok) {
+      throw new Error(`Expected successful parse, got errors: ${result.errors}`)
+    }
+    expect(result.value.continueOnError).toBe(expected)
   })
 
-  it('throws when continue_on_error uses invalid boolean token', () => {
+  it('returns error when continue_on_error uses invalid boolean token', () => {
     mockedGetInput.mockImplementation((name: string) => {
       switch (name) {
         case 'command':
@@ -228,8 +252,11 @@ describe('readInputs', () => {
       }
     })
 
-    expect(() => readInputs()).toThrow(
-      "Input 'continue_on_error' must be a boolean token: 1, 0, true, false, yes, no, on, off.",
-    )
+    expect(readInputs()).toEqual({
+      ok: false,
+      errors: [
+        "Input 'continue_on_error' must be a boolean token: 1, 0, true, false, yes, no, on, off.",
+      ],
+    })
   })
 })

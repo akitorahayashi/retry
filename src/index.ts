@@ -4,7 +4,13 @@ import { readInputs } from './action/read-inputs'
 import { executeRetry } from './app/execute-retry'
 
 async function run(): Promise<void> {
-  const request = readInputs()
+  const requestResult = readInputs()
+  if (!requestResult.ok) {
+    core.setFailed(requestResult.errors.join('\n'))
+    return
+  }
+  const request = requestResult.value
+
   const result = await executeRetry({
     command: {
       command: request.command,
