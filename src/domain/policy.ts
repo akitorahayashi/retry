@@ -37,7 +37,7 @@ export function shouldRetryFailure(
 
     default: {
       const _exhaustiveCheck: never = outcome
-      return _exhaustiveCheck
+      throw new Error(`Unexpected outcome: ${_exhaustiveCheck}`)
     }
   }
 }

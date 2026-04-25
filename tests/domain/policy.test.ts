@@ -86,4 +86,16 @@ describe('shouldRetryFailure', () => {
       }),
     ).toBe(false)
   })
+
+  it('handles exhaustive check for invalid outcome', () => {
+    // We intentionally pass an invalid outcome to test the exhaustiveness default case
+    const invalidOutcome =
+      'invalid' as unknown as import('../../src/domain/policy').AttemptOutcome
+
+    expect(() =>
+      shouldRetryFailure(invalidOutcome, 0, {
+        retryOn: 'any',
+      }),
+    ).toThrow('Unexpected outcome: invalid')
+  })
 })
