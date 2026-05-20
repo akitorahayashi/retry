@@ -15,7 +15,7 @@ The action owns:
 ```yaml
 - uses: akitorahayashi/retry@v1
   with:
-    command: npm test
+    command: pnpm test
     max_attempts: '3'
     timeout_seconds: '120'
     retry_delay_seconds: '5'

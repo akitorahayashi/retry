@@ -1,46 +1,46 @@
-import * as core from '@actions/core'
-import type { CommandSpec } from '../../domain/command'
-import type { RetryPolicy } from '../../domain/policy'
-import { shouldRetryFailure } from '../../domain/policy'
-import type { AttemptResult } from '../../domain/result'
+import * as core from '@actions/core';
+import type { CommandSpec } from '../../domain/command';
+import type { RetryPolicy } from '../../domain/policy';
+import { shouldRetryFailure } from '../../domain/policy';
+import type { AttemptResult } from '../../domain/result';
 import {
   resolveRetryDelaySeconds,
   type RetrySchedule,
-} from '../../domain/schedule'
+} from '../../domain/schedule';
 import {
   executeRetryDependencies,
   type ExecuteRetryDependencies,
-} from './execute-retry-dependencies'
-import { executeAttempt } from './execute-attempt'
-import { formatExitCode } from './format-exit-code'
+} from './execute-retry-dependencies';
+import { executeAttempt } from './execute-attempt';
+import { formatExitCode } from './format-exit-code';
 
 export interface ExecuteRetryRequest {
-  command: CommandSpec
-  policy: RetryPolicy
-  schedule: RetrySchedule
-  maxAttempts: number
+  command: CommandSpec;
+  policy: RetryPolicy;
+  schedule: RetrySchedule;
+  maxAttempts: number;
 }
 
 export async function executeRetry(
   request: ExecuteRetryRequest,
   dependencies: ExecuteRetryDependencies = executeRetryDependencies,
 ): Promise<AttemptResult> {
-  const { policy, schedule } = request
+  const { policy, schedule } = request;
 
-  let finalAttempt: AttemptResult | undefined
+  let finalAttempt: AttemptResult | undefined;
 
   for (let attempt = 1; attempt <= request.maxAttempts; attempt += 1) {
     finalAttempt = await core.group(
       `Attempt ${attempt}/${request.maxAttempts}`,
       async () => executeAttempt(request.command, attempt, dependencies),
-    )
+    );
 
     if (finalAttempt.outcome === 'success') {
-      return finalAttempt
+      return finalAttempt;
     }
 
     if (attempt === request.maxAttempts) {
-      return finalAttempt
+      return finalAttempt;
     }
 
     if (
@@ -48,25 +48,25 @@ export async function executeRetry(
     ) {
       core.info(
         'Failure is outside retry policy. Stopping without additional retries.',
-      )
-      return finalAttempt
+      );
+      return finalAttempt;
     }
 
-    const delaySeconds = resolveRetryDelaySeconds(attempt, schedule)
+    const delaySeconds = resolveRetryDelaySeconds(attempt, schedule);
 
     core.warning(
       `Attempt ${attempt} failed with ${finalAttempt.outcome} (exit code: ${formatExitCode(finalAttempt.exitCode)}). Retrying.`,
-    )
+    );
 
     if (delaySeconds > 0) {
-      core.info(`Waiting ${delaySeconds}s before next attempt.`)
-      await dependencies.delay(delaySeconds * 1000).promise
+      core.info(`Waiting ${delaySeconds}s before next attempt.`);
+      await dependencies.delay(delaySeconds * 1000).promise;
     }
   }
 
   if (!finalAttempt) {
-    throw new Error('Retry execution did not produce an attempt result.')
+    throw new Error('Retry execution did not produce an attempt result.');
   }
 
-  return finalAttempt
+  return finalAttempt;
 }

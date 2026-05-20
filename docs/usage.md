@@ -9,7 +9,7 @@ The repository-owned end-to-end verification path targets Linux runners.
 ```yaml
 - uses: akitorahayashi/retry@v1
   with:
-    command: npm test
+    command: pnpm test
     max_attempts: '3'
 ```
 

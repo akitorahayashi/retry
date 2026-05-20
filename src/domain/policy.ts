@@ -1,9 +1,9 @@
-export type AttemptOutcome = 'success' | 'error' | 'timeout'
-export type RetryOn = 'any' | 'error' | 'timeout'
+export type AttemptOutcome = 'success' | 'error' | 'timeout';
+export type RetryOn = 'any' | 'error' | 'timeout';
 
 export interface RetryPolicy {
-  retryOn: RetryOn
-  retryOnExitCodes?: ReadonlySet<number>
+  retryOn: RetryOn;
+  retryOnExitCodes?: ReadonlySet<number>;
 }
 
 export function shouldRetryFailure(
@@ -13,31 +13,31 @@ export function shouldRetryFailure(
 ): boolean {
   switch (outcome) {
     case 'success':
-      return false
+      return false;
 
     case 'timeout':
       if (policy.retryOn === 'error') {
-        return false
+        return false;
       }
-      return true
+      return true;
 
     case 'error':
       if (policy.retryOn === 'timeout') {
-        return false
+        return false;
       }
 
       if (policy.retryOnExitCodes) {
         if (exitCode === null) {
-          return false
+          return false;
         }
-        return policy.retryOnExitCodes.has(exitCode)
+        return policy.retryOnExitCodes.has(exitCode);
       }
 
-      return true
+      return true;
 
     default: {
-      const _exhaustiveCheck: never = outcome
-      return _exhaustiveCheck
+      const _exhaustiveCheck: never = outcome;
+      return _exhaustiveCheck;
     }
   }
 }

@@ -1,0 +1,18 @@
+# This repository does not use Corepack for pnpm installation.
+# CI and Docker install pnpm via npm (`npm install -g pnpm@latest`).
+
+packages:
+  - '.'
+
+allowBuilds:
+  esbuild: true
+
+minimumReleaseAge: 4320
+minimumReleaseAgeStrict: true
+blockExoticSubdeps: true
+
+strictDepBuilds: true
+dangerouslyAllowAllBuilds: false
+
+pmOnFail: download
+engineStrict: true

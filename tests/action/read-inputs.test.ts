@@ -1,32 +1,32 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import * as core from '@actions/core'
-import { readInputs } from '../../src/action/read-inputs'
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import * as core from '@actions/core';
+import { readInputs } from '../../src/action/read-inputs';
 
 vi.mock('@actions/core', () => ({
   getInput: vi.fn(),
-}))
+}));
 
-const mockedGetInput = vi.mocked(core.getInput)
+const mockedGetInput = vi.mocked(core.getInput);
 
 describe('readInputs', () => {
   afterEach(() => {
-    mockedGetInput.mockReset()
-  })
+    mockedGetInput.mockReset();
+  });
 
   it('reads required fields and applies defaults', () => {
     mockedGetInput.mockImplementation((name: string) => {
       switch (name) {
         case 'command':
-          return ' npm test '
+          return ' pnpm test ';
         case 'max_attempts':
-          return '3'
+          return '3';
         default:
-          return ''
+          return '';
       }
-    })
+    });
 
     expect(readInputs()).toEqual({
-      command: 'npm test',
+      command: 'pnpm test',
       maxAttempts: 3,
       shell: 'bash',
       timeoutSeconds: undefined,
@@ -36,41 +36,41 @@ describe('readInputs', () => {
       retryOnExitCodes: undefined,
       continueOnError: false,
       terminationGraceSeconds: 5,
-    })
-  })
+    });
+  });
 
   it('parses all optional fields', () => {
     mockedGetInput.mockImplementation((name: string) => {
       switch (name) {
         case 'command':
-          return 'npm run check'
+          return 'pnpm run check';
         case 'max_attempts':
-          return '5'
+          return '5';
         case 'shell':
-          return '/bin/bash'
+          return '/bin/bash';
         case 'timeout_seconds':
-          return '15'
+          return '15';
         case 'retry_delay_seconds':
-          return '3'
+          return '3';
         case 'retry_delay_schedule_seconds':
-          return '1,2,5'
+          return '1,2,5';
         case 'retry_on':
-          return 'error'
+          return 'error';
         case 'retry_on_exit_codes':
-          return '1,2,9'
+          return '1,2,9';
         case 'continue_on_error':
-          return 'yes'
+          return 'yes';
         case 'termination_grace_seconds':
-          return '2'
+          return '2';
         default:
-          return ''
+          return '';
       }
-    })
+    });
 
-    const result = readInputs()
-    expect(result.retryOnExitCodes).toEqual(new Set([1, 2, 9]))
+    const result = readInputs();
+    expect(result.retryOnExitCodes).toEqual(new Set([1, 2, 9]));
     expect(result).toEqual({
-      command: 'npm run check',
+      command: 'pnpm run check',
       maxAttempts: 5,
       shell: '/bin/bash',
       timeoutSeconds: 15,
@@ -80,106 +80,106 @@ describe('readInputs', () => {
       retryOnExitCodes: new Set([1, 2, 9]),
       continueOnError: true,
       terminationGraceSeconds: 2,
-    })
-  })
+    });
+  });
 
   it('throws when required command is missing', () => {
     mockedGetInput.mockImplementation((name: string) => {
       if (name === 'command') {
-        return ' '
+        return ' ';
       }
-      return '1'
-    })
+      return '1';
+    });
 
-    expect(() => readInputs()).toThrow("Input 'command' is required.")
-  })
+    expect(() => readInputs()).toThrow("Input 'command' is required.");
+  });
 
   it('throws for invalid retry_on value', () => {
     mockedGetInput.mockImplementation((name: string) => {
       switch (name) {
         case 'command':
-          return 'echo ok'
+          return 'echo ok';
         case 'max_attempts':
-          return '2'
+          return '2';
         case 'retry_on':
-          return 'sometimes'
+          return 'sometimes';
         default:
-          return ''
+          return '';
       }
-    })
+    });
 
     expect(() => readInputs()).toThrow(
       "Input 'retry_on' must be one of: any, error, timeout.",
-    )
-  })
+    );
+  });
 
   it('throws when numeric value violates minimum', () => {
     mockedGetInput.mockImplementation((name: string) => {
       switch (name) {
         case 'command':
-          return 'echo ok'
+          return 'echo ok';
         case 'max_attempts':
-          return '0'
+          return '0';
         default:
-          return ''
+          return '';
       }
-    })
+    });
 
-    expect(() => readInputs()).toThrow("Input 'max_attempts' must be >= 1.")
-  })
+    expect(() => readInputs()).toThrow("Input 'max_attempts' must be >= 1.");
+  });
 
   it('throws when numeric value is not an integer', () => {
     mockedGetInput.mockImplementation((name: string) => {
       switch (name) {
         case 'command':
-          return 'echo ok'
+          return 'echo ok';
         case 'max_attempts':
-          return '3.5'
+          return '3.5';
         case 'timeout_seconds':
-          return '10.2'
+          return '10.2';
         default:
-          return ''
+          return '';
       }
-    })
+    });
 
     expect(() => readInputs()).toThrow(
       "Input 'max_attempts' must be an integer.",
-    )
+    );
 
     mockedGetInput.mockImplementation((name: string) => {
       switch (name) {
         case 'command':
-          return 'echo ok'
+          return 'echo ok';
         case 'max_attempts':
-          return '3'
+          return '3';
         case 'timeout_seconds':
-          return 'abc'
+          return 'abc';
         default:
-          return ''
+          return '';
       }
-    })
+    });
 
     expect(() => readInputs()).toThrow(
       "Input 'timeout_seconds' must be an integer.",
-    )
+    );
 
     mockedGetInput.mockImplementation((name: string) => {
       switch (name) {
         case 'command':
-          return 'echo ok'
+          return 'echo ok';
         case 'max_attempts':
-          return '3'
+          return '3';
         case 'retry_delay_seconds':
-          return '1.5'
+          return '1.5';
         default:
-          return ''
+          return '';
       }
-    })
+    });
 
     expect(() => readInputs()).toThrow(
       "Input 'retry_delay_seconds' must be an integer.",
-    )
-  })
+    );
+  });
 
   it.each([
     { token: '0', expected: false },
@@ -200,36 +200,36 @@ describe('readInputs', () => {
     mockedGetInput.mockImplementation((name: string) => {
       switch (name) {
         case 'command':
-          return 'echo ok'
+          return 'echo ok';
         case 'max_attempts':
-          return '1'
+          return '1';
         case 'continue_on_error':
-          return token
+          return token;
         default:
-          return ''
+          return '';
       }
-    })
+    });
 
-    const result = readInputs()
-    expect(result.continueOnError).toBe(expected)
-  })
+    const result = readInputs();
+    expect(result.continueOnError).toBe(expected);
+  });
 
   it('throws when continue_on_error uses invalid boolean token', () => {
     mockedGetInput.mockImplementation((name: string) => {
       switch (name) {
         case 'command':
-          return 'echo ok'
+          return 'echo ok';
         case 'max_attempts':
-          return '2'
+          return '2';
         case 'continue_on_error':
-          return 'treu'
+          return 'treu';
         default:
-          return ''
+          return '';
       }
-    })
+    });
 
     expect(() => readInputs()).toThrow(
       "Input 'continue_on_error' must be a boolean token: 1, 0, true, false, yes, no, on, off.",
-    )
-  })
-})
+    );
+  });
+});
