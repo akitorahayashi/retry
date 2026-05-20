@@ -10,27 +10,27 @@
 
 The repository-owned verification and maintenance recipes are:
 
-- `just fix`: runs `npm run format` and `npm run lint:fix`
-- `just check`: runs `npm run format:check`, `npm run lint`, and `npm run typecheck`
-- `just test`: runs `npm test`
-- `just coverage`: resets `coverage/` and runs `npm run test:coverage`
+- `just fix`: runs `pnpm format` and `pnpm lint:fix`
+- `just check`: runs `pnpm format:check`, `pnpm lint`, and `pnpm typecheck`
+- `just test`: runs `pnpm test`
+- `just coverage`: resets `coverage/` and runs `pnpm test:coverage`
 - `just clean`: removes repository-local generated artifacts under `.tmp`, `coverage`, and `node_modules`
 
-`package.json` retains the atomic npm scripts behind these recipes:
+`package.json` retains the atomic pnpm scripts behind these recipes:
 
-- `npm run format`
-- `npm run format:check`
-- `npm run lint`
-- `npm run lint:fix`
-- `npm test`
-- `npm run test:coverage`
-- `npm run typecheck`
-- `npm run package`
+- `pnpm format`
+- `pnpm format:check`
+- `pnpm lint`
+- `pnpm lint:fix`
+- `pnpm test`
+- `pnpm test:coverage`
+- `pnpm typecheck`
+- `pnpm package`
 
 ## Distribution Boundary
 
 `dist/` is committed because GitHub Actions executes repository contents directly from the tagged revision. Normal development changes do not update `dist/`.
-Release automation on `main` runs `npm run package`, commits `dist/` when changed, and then creates release tags.
+Release automation on `main` runs `pnpm package`, commits `dist/` when changed, and then creates release tags.
 
 ## Release Model
 

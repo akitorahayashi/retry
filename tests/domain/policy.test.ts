@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { shouldRetryFailure } from '../../src/domain/policy'
+import { describe, expect, it } from 'vitest';
+import { shouldRetryFailure } from '../../src/domain/policy';
 
 describe('shouldRetryFailure', () => {
   it('never retries success outcomes', () => {
@@ -7,62 +7,62 @@ describe('shouldRetryFailure', () => {
       shouldRetryFailure('success', 0, {
         retryOn: 'any',
       }),
-    ).toBe(false)
+    ).toBe(false);
 
     expect(
       shouldRetryFailure('success', 0, {
         retryOn: 'error',
       }),
-    ).toBe(false)
+    ).toBe(false);
 
     expect(
       shouldRetryFailure('success', 0, {
         retryOn: 'timeout',
       }),
-    ).toBe(false)
-  })
+    ).toBe(false);
+  });
 
   it('retries error and timeout when policy is any', () => {
     expect(
       shouldRetryFailure('error', 1, {
         retryOn: 'any',
       }),
-    ).toBe(true)
+    ).toBe(true);
 
     expect(
       shouldRetryFailure('timeout', null, {
         retryOn: 'any',
       }),
-    ).toBe(true)
-  })
+    ).toBe(true);
+  });
 
   it('retries only timeout when policy is timeout', () => {
     expect(
       shouldRetryFailure('error', 1, {
         retryOn: 'timeout',
       }),
-    ).toBe(false)
+    ).toBe(false);
 
     expect(
       shouldRetryFailure('timeout', null, {
         retryOn: 'timeout',
       }),
-    ).toBe(true)
-  })
+    ).toBe(true);
+  });
 
   it('retries only error when policy is error', () => {
     expect(
       shouldRetryFailure('error', 1, {
         retryOn: 'error',
       }),
-    ).toBe(true)
+    ).toBe(true);
 
     expect(
       shouldRetryFailure('timeout', null, {
         retryOn: 'error',
       }),
-    ).toBe(false)
-  })
+    ).toBe(false);
+  });
 
   it('applies exit-code filter for error outcomes', () => {
     expect(
@@ -70,20 +70,20 @@ describe('shouldRetryFailure', () => {
         retryOn: 'any',
         retryOnExitCodes: new Set([7, 9]),
       }),
-    ).toBe(true)
+    ).toBe(true);
 
     expect(
       shouldRetryFailure('error', 2, {
         retryOn: 'any',
         retryOnExitCodes: new Set([7, 9]),
       }),
-    ).toBe(false)
+    ).toBe(false);
 
     expect(
       shouldRetryFailure('error', null, {
         retryOn: 'any',
         retryOnExitCodes: new Set([7, 9]),
       }),
-    ).toBe(false)
-  })
-})
+    ).toBe(false);
+  });
+});

@@ -19,7 +19,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Build Action Distribution
-        run: npm run package
+        run: pnpm run package
 
       - name: Retry Until Third Attempt
         id: retry-success

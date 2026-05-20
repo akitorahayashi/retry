@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { resolveRetryDelaySeconds } from '../../src/domain/schedule'
+import { describe, expect, it } from 'vitest';
+import { resolveRetryDelaySeconds } from '../../src/domain/schedule';
 
 describe('resolveRetryDelaySeconds', () => {
   it('uses schedule value for matching attempt', () => {
@@ -8,8 +8,8 @@ describe('resolveRetryDelaySeconds', () => {
         retryDelaySeconds: 10,
         retryDelayScheduleSeconds: [2, 4],
       }),
-    ).toBe(2)
-  })
+    ).toBe(2);
+  });
 
   it('falls back to default delay when schedule has no value', () => {
     expect(
@@ -17,6 +17,6 @@ describe('resolveRetryDelaySeconds', () => {
         retryDelaySeconds: 10,
         retryDelayScheduleSeconds: [2, 4],
       }),
-    ).toBe(10)
-  })
-})
+    ).toBe(10);
+  });
+});

@@ -69,7 +69,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Build Action Distribution
-        run: npm run package
+        run: pnpm run package
 
       - name: Commit Distribution
         id: dist

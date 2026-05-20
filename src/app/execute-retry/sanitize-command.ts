@@ -1,18 +1,18 @@
 export function sanitizeCommand(command: string): string {
   // Simple whitespace split for argument counting.
   // This does not handle quoted arguments as a single unit.
-  const parts = command.trim().split(/\s+/)
+  const parts = command.trim().split(/\s+/);
   if (parts.length === 0 || !parts[0]) {
-    return '<empty>'
+    return '<empty>';
   }
 
-  const executablePath = parts[0]
-  const basename = executablePath.split(/[/\\]/).pop() ?? executablePath
-  const argsCount = parts.length - 1
+  const executablePath = parts[0];
+  const basename = executablePath.split(/[/\\]/).pop() ?? executablePath;
+  const argsCount = parts.length - 1;
 
   if (argsCount === 0) {
-    return basename
+    return basename;
   }
 
-  return `${basename} [+${argsCount} args]`
+  return `${basename} [+${argsCount} args]`;
 }
