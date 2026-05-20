@@ -27,6 +27,7 @@ runs:
       with:
         node-version-file: ${{ inputs.node-version-file }}
         cache: pnpm
+        cache-dependency-path: pnpm-lock.yaml
 
     - name: Setup mise with locked tools
       uses: jdx/mise-action@v3
