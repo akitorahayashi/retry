@@ -23,9 +23,9 @@ Automation is under `.github/workflows/`.
 
 ## Validation Entrypoints
 
-`just fix` runs formatting and safe lint fixes.
-`just check` runs format, lint, and typecheck validation.
-`just test` runs the Vitest suite.
+`pnpm run fix` runs Biome checks with safe fixes.
+`pnpm run check` runs Biome checks and TypeScript typecheck validation.
+`pnpm run test` runs the Vitest suite.
 
 ## Constraint
 

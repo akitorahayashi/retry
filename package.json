@@ -9,10 +9,9 @@
     "node": ">=24.14.0 <25"
   },
   "scripts": {
-    "lint": "biome lint .",
-    "lint:fix": "biome lint --write .",
-    "format": "biome format --write .",
-    "format:check": "biome check --formatter-enabled=true --linter-enabled=false --assist-enabled=false .",
+    "check": "biome check . && pnpm run typecheck",
+    "fix": "biome check --write .",
+    "clean": "rm -rf .tmp coverage node_modules dist",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",

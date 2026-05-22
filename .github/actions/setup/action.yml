@@ -1,17 +1,13 @@
 name: Setup Node Environment
-description: Install Node.js, setup mise-managed tools, and install pnpm dependencies
+description: Install Node.js and pnpm dependencies
 
 inputs:
   node-version-file:
     description: Node.js version file path
     required: false
     default: .nvmrc
-  mise-version:
-    description: mise version to install
-    required: false
-    default: '2026.2.19'
   args:
-    description: Arguments passed to `just setup`
+    description: Arguments passed to `pnpm install`
     required: false
     default: '--frozen-lockfile'
 
@@ -29,12 +25,6 @@ runs:
         cache: pnpm
         cache-dependency-path: pnpm-lock.yaml
 
-    - name: Setup mise with locked tools
-      uses: jdx/mise-action@v3
-      with:
-        version: ${{ inputs.mise-version }}
-        install_args: --locked
-
-    - name: Run just setup
-      run: mise exec -- just setup ${{ inputs.args }}
+    - name: Install dependencies
+      run: pnpm install ${{ inputs.args }}
       shell: bash
