@@ -1,5 +1,5 @@
-import { resolve } from 'node:path';
 import { EventEmitter } from 'node:events';
+import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
   runShellCommand,

@@ -1,6 +1,6 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { registerCommandTerminationOnSignal } from '../../src/app/execute-retry/terminate-command-on-signal';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RunningCommand } from '../../src/adapters/run-shell-command';
+import { registerCommandTerminationOnSignal } from '../../src/app/execute-retry/terminate-command-on-signal';
 
 function createProcessSpies() {
   let resolveExit!: (code: number) => void;

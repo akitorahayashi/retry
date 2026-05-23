@@ -6,15 +6,15 @@
 
 ## Local Verification
 
-`just` is the canonical local entrypoint for repository tasks.
+`pnpm` is the canonical local entrypoint for repository tasks.
 
 The repository-owned verification and maintenance recipes are:
 
-- `just fix`: runs `pnpm format` and `pnpm lint:fix`
-- `just check`: runs `pnpm format:check`, `pnpm lint`, and `pnpm typecheck`
-- `just test`: runs `pnpm test`
-- `just coverage`: resets `coverage/` and runs `pnpm test:coverage`
-- `just clean`: removes repository-local generated artifacts under `.tmp`, `coverage`, and `node_modules`
+- `pnpm run fix`: runs `biome check --write .`
+- `pnpm run check`: runs `biome check .` and `pnpm run typecheck`
+- `pnpm run test`: runs `pnpm test`
+- `pnpm run test:coverage`: resets `coverage/` and runs `pnpm test:coverage`
+- `pnpm run clean`: removes repository-local generated artifacts under `.tmp`, `coverage`, `node_modules`, and `dist`
 
 `package.json` retains the atomic pnpm scripts behind these recipes:
 

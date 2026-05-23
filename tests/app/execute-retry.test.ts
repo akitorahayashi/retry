@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { RunningCommand } from '../../src/adapters/run-shell-command';
 import {
-  executeRetry,
   type ExecuteRetryRequest,
+  executeRetry,
 } from '../../src/app/execute-retry';
 
 interface ExecuteRetryRequestOverrides {

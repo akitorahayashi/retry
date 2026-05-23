@@ -1,7 +1,7 @@
 import { delay } from '../../adapters/delay';
 import {
-  runShellCommand,
   type RunningCommand,
+  runShellCommand,
 } from '../../adapters/run-shell-command';
 import { terminateProcessTree } from '../../adapters/terminate-process-tree';
 

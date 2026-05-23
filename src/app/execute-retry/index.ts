@@ -4,14 +4,14 @@ import type { RetryPolicy } from '../../domain/policy';
 import { shouldRetryFailure } from '../../domain/policy';
 import type { AttemptResult } from '../../domain/result';
 import {
-  resolveRetryDelaySeconds,
   type RetrySchedule,
+  resolveRetryDelaySeconds,
 } from '../../domain/schedule';
-import {
-  executeRetryDependencies,
-  type ExecuteRetryDependencies,
-} from './execute-retry-dependencies';
 import { executeAttempt } from './execute-attempt';
+import {
+  type ExecuteRetryDependencies,
+  executeRetryDependencies,
+} from './execute-retry-dependencies';
 import { formatExitCode } from './format-exit-code';
 
 export interface ExecuteRetryRequest {

@@ -2,13 +2,13 @@ import * as core from '@actions/core';
 import type { RunningCommand } from '../../adapters/run-shell-command';
 import type { CommandSpec } from '../../domain/command';
 import type { AttemptResult } from '../../domain/result';
-import type { ExecuteRetryDependencies } from './execute-retry-dependencies';
 import {
   awaitAttemptOutcome,
   logAttemptCompletion,
 } from './await-attempt-outcome';
-import { registerCommandTerminationOnSignal } from './terminate-command-on-signal';
+import type { ExecuteRetryDependencies } from './execute-retry-dependencies';
 import { sanitizeCommand } from './sanitize-command';
+import { registerCommandTerminationOnSignal } from './terminate-command-on-signal';
 
 export { sanitizeCommand };
 
