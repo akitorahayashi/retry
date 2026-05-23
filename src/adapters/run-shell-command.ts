@@ -1,7 +1,7 @@
 import {
-  spawn,
-  type SpawnOptions,
   type ChildProcess,
+  type SpawnOptions,
+  spawn,
 } from 'node:child_process';
 
 export type SpawnFn = (command: string, options: SpawnOptions) => ChildProcess;

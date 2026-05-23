@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { describe, expect, it, beforeAll } from 'vitest';
 import yaml from 'js-yaml';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 interface ActionFile {
   runs: {
